@@ -2461,7 +2461,7 @@ Once installed, use Add Integration -> Ecoflow Cloud.
 
 </p></details>
 
-<details><summary> Stream AC (API) <i>(sensors: 41, switches: 5, sliders: 1, selects: 0)</i> </summary>
+<details><summary> Stream AC (API) <i>(sensors: 42, switches: 5, sliders: 1, selects: 0)</i> </summary>
 <p>
 
 *Sensors*
@@ -2506,6 +2506,7 @@ Once installed, use Add Integration -> Ecoflow Cloud.
 - Power AC SYS
 - Battery Temperature
 - Battery Volts  _(disabled)_
+- Solar Energy Savings Today
 
 *Switches*
 - AC 1 On 
@@ -2521,7 +2522,7 @@ Once installed, use Add Integration -> Ecoflow Cloud.
 
 </p></details>
 
-<details><summary> Stream PRO (API) <i>(sensors: 41, switches: 5, sliders: 1, selects: 0)</i> </summary>
+<details><summary> Stream PRO (API) <i>(sensors: 42, switches: 5, sliders: 1, selects: 0)</i> </summary>
 <p>
 
 *Sensors*
@@ -2566,6 +2567,7 @@ Once installed, use Add Integration -> Ecoflow Cloud.
 - Power AC SYS
 - Battery Temperature
 - Battery Volts  _(disabled)_
+- Solar Energy Savings Today
 
 *Switches*
 - AC 1 On 
@@ -2581,7 +2583,7 @@ Once installed, use Add Integration -> Ecoflow Cloud.
 
 </p></details>
 
-<details><summary> Stream Ultra (API) <i>(sensors: 41, switches: 5, sliders: 1, selects: 0)</i> </summary>
+<details><summary> Stream Ultra (API) <i>(sensors: 42, switches: 5, sliders: 1, selects: 0)</i> </summary>
 <p>
 
 *Sensors*
@@ -2626,6 +2628,7 @@ Once installed, use Add Integration -> Ecoflow Cloud.
 - Power AC SYS
 - Battery Temperature
 - Battery Volts  _(disabled)_
+- Solar Energy Savings Today
 
 *Switches*
 - AC 1 On 

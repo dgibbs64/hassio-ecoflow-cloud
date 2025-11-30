@@ -46,6 +46,12 @@ class EcoflowApiClient(ABC):
     def configure_device(self, device_data: DeviceData):
         pass
 
+    async def fetch_solar_savings(
+        self, device_sn: str, begin_time: str, end_time: str
+    ) -> dict | None:
+        """Fetch total solar energy savings. Override in subclass if supported."""
+        return None
+
     def add_device(self, device):
         self.devices[device.device_data.sn] = device
 

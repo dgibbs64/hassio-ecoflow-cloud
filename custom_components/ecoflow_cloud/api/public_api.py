@@ -143,6 +143,38 @@ class EcoflowPublicApiClient(EcoflowApiClient):
             )
             return json_resp
 
+    async def fetch_solar_savings(self, device_sn: str, begin_time: str, end_time: str) -> dict | None:
+        """Fetch total solar energy savings for a device.
+
+        Args:
+            device_sn: The serial number of the device
+            begin_time: Start time in format "YYYY-MM-DD HH:MM:SS"
+            end_time: End time in format "YYYY-MM-DD HH:MM:SS"
+
+        Returns:
+            Dictionary with 'value' and 'unit' keys, or None if not available
+        """
+        try:
+            params = {
+                "sn": device_sn,
+                "params.beginTime": begin_time,
+                "params.endTime": end_time,
+                "params.code": "BK621-App-HOME-SAVING-CURRENCY-FLOW-earnings-progress_arc-NOTDISTINGUISH-MASTER_DATA",
+            }
+            response = await self.call_api("/device/quota", params)
+            if "data" in response and "data" in response["data"]:
+                data_list = response["data"]["data"]
+                for item in data_list:
+                    if item.get("indexName") == "master_data":
+                        return {
+                            "value": item.get("indexValue", 0),
+                            "unit": item.get("unit", ""),
+                        }
+            return None
+        except Exception as exception:
+            _LOGGER.error("Error fetching solar savings for %s: %s", device_sn, exception)
+            return None
+
     def __create_device_info(
         self, device_sn: str, device_name: str, device_type: str, status: int = -1
     ) -> EcoflowDeviceInfo:

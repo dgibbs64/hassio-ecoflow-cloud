@@ -656,3 +656,68 @@ class SolarAmpSensorEntity(AmpSensorEntity):
 class SystemPowerSensorEntity(WattsSensorEntity):
     _attr_entity_category = None
     _attr_suggested_display_precision = 1
+
+
+class SolarSavingsSensorEntity(SensorEntity, EcoFlowAbstractEntity):
+    """Sensor entity for total solar energy savings (monetary value)."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_icon = "mdi:cash-multiple"
+    _attr_suggested_display_precision = 2
+    _attr_native_value = 0
+
+    # Update interval in seconds (default 1 hour)
+    _update_interval_sec: int = 3600
+
+    def __init__(
+        self,
+        client: EcoflowApiClient,
+        device: BaseDevice,
+        title: str = const.STREAM_SOLAR_SAVINGS,
+        enabled: bool = True,
+    ):
+        super().__init__(client, device, title, "solar_savings")
+        self._attr_entity_registry_enabled_default = enabled
+        self._last_update = dt.utcnow().replace(
+            year=2000, month=1, day=1, hour=0, minute=0, second=0
+        )
+        self._currency_unit: str | None = None
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """Return the currency unit from the API response."""
+        return self._currency_unit
+
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator updates and fetch solar savings periodically."""
+        time_diff = dt.as_timestamp(dt.utcnow()) - dt.as_timestamp(self._last_update)
+
+        if time_diff >= self._update_interval_sec:
+            self._last_update = dt.utcnow()
+            self.hass.async_create_background_task(
+                self._fetch_solar_savings(), "fetch_solar_savings"
+            )
+
+    async def _fetch_solar_savings(self) -> None:
+        """Fetch solar savings data from the API."""
+        try:
+            # Get today's date range
+            now = dt.now()
+            begin_time = now.replace(hour=0, minute=0, second=0).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            end_time = now.replace(hour=23, minute=59, second=59).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+            result = await self._client.fetch_solar_savings(
+                self._device.device_info.sn, begin_time, end_time
+            )
+
+            if result is not None:
+                self._attr_native_value = result.get("value", 0)
+                self._currency_unit = result.get("unit")
+                self.schedule_update_ha_state()
+        except Exception as error:
+            _LOGGER.error("Error fetching solar savings: %s", error)
