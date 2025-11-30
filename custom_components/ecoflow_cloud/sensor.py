@@ -1,8 +1,7 @@
-import datetime
 import enum
 import logging
 import struct
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Mapping, OrderedDict, override
 
 from homeassistant.components.binary_sensor import ( # pyright: ignore[reportMissingImports]
@@ -681,7 +680,7 @@ class SolarSavingsSensorEntity(SensorEntity, EcoFlowAbstractEntity):
         super().__init__(client, device, title, "solar_savings")
         self._attr_entity_registry_enabled_default = enabled
         # Initialize to None to trigger immediate update on first coordinator update
-        self._last_update: datetime.datetime | None = None
+        self._last_update: datetime | None = None
         self._currency_unit: str | None = None
 
     @property
