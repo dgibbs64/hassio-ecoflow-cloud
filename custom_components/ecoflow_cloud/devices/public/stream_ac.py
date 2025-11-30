@@ -1,4 +1,4 @@
-from ...sensor import StatusSensorEntity
+from ...sensor import StatusSensorEntity, DailySolarEnergySensorEntity
 from .data_bridge import to_plain
 from custom_components.ecoflow_cloud.api import EcoflowApiClient
 from custom_components.ecoflow_cloud.devices import const, BaseDevice
@@ -262,6 +262,9 @@ class StreamAC(BaseDevice):
             .attr("minCellVol", const.ATTR_MIN_CELL_VOLT, 0)
             .attr("maxCellVol", const.ATTR_MAX_CELL_VOLT, 0),
             # "waterInFlag": 0,
+
+            # Daily solar energy from API
+            DailySolarEnergySensorEntity(client, self, title=const.SOLAR_IN_ENERGY_DAILY),
 
         ]
     # moduleWifiRssi

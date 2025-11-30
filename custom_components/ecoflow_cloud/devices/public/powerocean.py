@@ -125,7 +125,7 @@ class PowerOcean(BaseDevice):
             sensors.extend(self._create_battery_sensors(client, index))
 
         sensors.append(StatusSensorEntity(client, self))
-        sensors.append(DailySolarEnergySensorEntity(client, self, const.SOLAR_IN_ENERGY_DAILY))
+        sensors.append(DailySolarEnergySensorEntity(client, self, title=const.SOLAR_IN_ENERGY_DAILY))
         return sensors
 
     def _determine_mppt_metadata(self) -> tuple[str, int]:
