@@ -694,12 +694,8 @@ class DailySolarEnergySensorEntity(SensorEntity, EcoFlowAbstractEntity):
 
     async def _async_fetch_solar_energy(self, date_str: str) -> None:
         """Fetch daily solar energy from the API."""
-        # Use lock to prevent concurrent fetches
-        if self._fetch_lock.locked():
-            return
-
         async with self._fetch_lock:
-            # Double-check after acquiring lock
+            # Check after acquiring lock to prevent duplicate fetches
             if self._last_fetch_date == date_str:
                 return
 

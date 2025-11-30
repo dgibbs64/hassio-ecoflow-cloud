@@ -194,7 +194,7 @@ class EcoflowPublicApiClient(EcoflowApiClient):
         return hmac_digest
 
     async def call_api_post(
-        self, endpoint: str, json_body: dict[str, Any] = None
+        self, endpoint: str, json_body: dict[str, Any] | None = None
     ) -> dict:
         """Call the EcoFlow API with a POST request and JSON body."""
         self.nonce = str(random.randint(10000, 1000000))
