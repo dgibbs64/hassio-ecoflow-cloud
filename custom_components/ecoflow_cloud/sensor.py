@@ -1,3 +1,4 @@
+import datetime
 import enum
 import logging
 import struct
@@ -679,8 +680,8 @@ class SolarSavingsSensorEntity(SensorEntity, EcoFlowAbstractEntity):
     ):
         super().__init__(client, device, title, "solar_savings")
         self._attr_entity_registry_enabled_default = enabled
-        # Initialize to a date far in the past to trigger immediate update
-        self._last_update = dt.utcnow() - timedelta(days=365)
+        # Initialize to None to trigger immediate update on first coordinator update
+        self._last_update: datetime.datetime | None = None
         self._currency_unit: str | None = None
 
     @property
@@ -690,9 +691,12 @@ class SolarSavingsSensorEntity(SensorEntity, EcoFlowAbstractEntity):
 
     def _handle_coordinator_update(self) -> None:
         """Handle coordinator updates and fetch solar savings periodically."""
-        time_diff = dt.as_timestamp(dt.utcnow()) - dt.as_timestamp(self._last_update)
+        should_update = self._last_update is None
+        if not should_update:
+            time_diff = (dt.utcnow() - self._last_update).total_seconds()
+            should_update = time_diff >= self._update_interval_sec
 
-        if time_diff >= self._update_interval_sec:
+        if should_update:
             self._last_update = dt.utcnow()
             self.hass.async_create_background_task(
                 self._fetch_solar_savings(), "fetch_solar_savings"

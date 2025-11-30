@@ -165,14 +165,13 @@ class EcoflowPublicApiClient(EcoflowApiClient):
                 "params.code": _SOLAR_SAVINGS_CODE,
             }
             response = await self.call_api("/device/quota", params)
-            if "data" in response and "data" in response["data"]:
-                data_list = response["data"]["data"]
-                for item in data_list:
-                    if item.get("indexName") == "master_data":
-                        return {
-                            "value": item.get("indexValue", 0),
-                            "unit": item.get("unit", ""),
-                        }
+            data_list = response.get("data", {}).get("data", [])
+            for item in data_list:
+                if item.get("indexName") == "master_data":
+                    return {
+                        "value": item.get("indexValue", 0),
+                        "unit": item.get("unit", ""),
+                    }
             return None
         except Exception as exception:
             _LOGGER.error("Error fetching solar savings for %s: %s", device_sn, exception)
