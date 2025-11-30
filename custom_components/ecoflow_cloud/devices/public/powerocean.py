@@ -14,6 +14,7 @@ from ...entities import (
 from ...sensor import (
     AmpSensorEntity,
     CyclesSensorEntity,
+    DailySolarEnergySensorEntity,
     EnergySensorEntity,
     LevelSensorEntity,
     MilliVoltSensorEntity,
@@ -25,7 +26,7 @@ from ...sensor import (
     VoltSensorEntity,
     WattsSensorEntity,
 )
-from .. import BaseDevice
+from .. import BaseDevice, const
 from .data_bridge import to_plain
 
 
@@ -124,6 +125,7 @@ class PowerOcean(BaseDevice):
             sensors.extend(self._create_battery_sensors(client, index))
 
         sensors.append(StatusSensorEntity(client, self))
+        sensors.append(DailySolarEnergySensorEntity(client, self, const.SOLAR_IN_ENERGY_DAILY))
         return sensors
 
     def _determine_mppt_metadata(self) -> tuple[str, int]:

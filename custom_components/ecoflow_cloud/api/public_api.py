@@ -191,3 +191,85 @@ class EcoflowPublicApiClient(EcoflowApiClient):
         hmac_digest = hmac_obj.hexdigest()
 
         return hmac_digest
+
+    async def call_api_post(
+        self, endpoint: str, json_body: dict[str, any] = None
+    ) -> dict:
+        """Call the EcoFlow API with a POST request and JSON body."""
+        self.nonce = str(random.randint(10000, 1000000))
+        self.timestamp = str(int(time.time() * 1000))
+        async with aiohttp.ClientSession() as session:
+            sign = self.__gen_sign(None)
+
+            headers = {
+                "accessKey": self.access_key,
+                "nonce": self.nonce,
+                "timestamp": self.timestamp,
+                "sign": sign,
+                "Content-Type": "application/json",
+            }
+
+            _LOGGER.debug("POST Request: %s %s.", str(endpoint), str(json_body))
+            resp = await session.post(
+                f"https://{self.api_domain}/iot-open/sign{endpoint}",
+                headers=headers,
+                json=json_body,
+            )
+            json_resp = await self._get_json_response(resp)
+            _LOGGER.debug(
+                "POST Request: %s %s. Response : %s",
+                str(endpoint),
+                str(json_body),
+                str(json_resp),
+            )
+            return json_resp
+
+    async def fetch_daily_solar_energy(
+        self, device_sn: str, date_str: str
+    ) -> int | None:
+        """Fetch daily solar energy for a device.
+
+        Args:
+            device_sn: The serial number of the device
+            date_str: The date in YYYY-MM-DD format
+
+        Returns:
+            The solar energy in watt-hours or None if the request fails
+        """
+        try:
+            json_body = {
+                "sn": device_sn,
+                "params": {
+                    "beginTime": f"{date_str} 00:00:00",
+                    "endTime": f"{date_str} 23:59:59",
+                    "code": "BK621-App-HOME-SOLAR-ENERGY-FLOW-solor-line-NOTDISTINGUISH-MASTER_DATA",
+                },
+            }
+            response = await self.call_api_post("/device/param/query/EnergyFlow", json_body)
+
+            # Parse response: {"data": {"data": [{"unit": "wh", "indexName": "master_data", "indexValue": "9945"}]}}
+            if (
+                "data" in response
+                and isinstance(response["data"], dict)
+                and "data" in response["data"]
+            ):
+                data_list = response["data"]["data"]
+                if isinstance(data_list, list):
+                    for item in data_list:
+                        if (
+                            isinstance(item, dict)
+                            and item.get("indexName") == "master_data"
+                        ):
+                            try:
+                                return int(item.get("indexValue", 0))
+                            except (TypeError, ValueError):
+                                _LOGGER.warning(
+                                    "Invalid indexValue in solar energy response: %s",
+                                    item.get("indexValue"),
+                                )
+                                return None
+            _LOGGER.debug("No solar energy data found in response: %s", response)
+            return None
+        except Exception as e:
+            _LOGGER.error("Error fetching daily solar energy: %s", e)
+            return None

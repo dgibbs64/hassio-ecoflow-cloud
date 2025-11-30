@@ -656,3 +656,53 @@ class SolarAmpSensorEntity(AmpSensorEntity):
 class SystemPowerSensorEntity(WattsSensorEntity):
     _attr_entity_category = None
     _attr_suggested_display_precision = 1
+
+
+class DailySolarEnergySensorEntity(SensorEntity, EcoFlowAbstractEntity):
+    """Sensor entity that fetches daily solar energy from the EcoFlow API."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_icon = "mdi:solar-power"
+    _attr_entity_category = None
+
+    def __init__(
+        self,
+        client: EcoflowApiClient,
+        device: BaseDevice,
+        title: str = "Solar In Energy Daily",
+        key: str = "solar_in_energy_daily",
+        enabled: bool = True,
+    ):
+        super().__init__(client, device, title, key)
+        self._attr_entity_registry_enabled_default = enabled
+        self._last_fetch_date: str | None = None
+        self._fetch_in_progress = False
+
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator update by checking if we need to fetch new data."""
+        current_date = dt.now().strftime("%Y-%m-%d")
+
+        # Only fetch once per day and avoid concurrent fetches
+        if self._last_fetch_date != current_date and not self._fetch_in_progress:
+            self._fetch_in_progress = True
+            self.hass.async_create_background_task(
+                self._async_fetch_solar_energy(current_date),
+                "fetch_daily_solar_energy",
+            )
+
+    async def _async_fetch_solar_energy(self, date_str: str) -> None:
+        """Fetch daily solar energy from the API."""
+        try:
+            energy = await self._client.fetch_daily_solar_energy(
+                self._device.device_info.sn, date_str
+            )
+            if energy is not None:
+                self._attr_native_value = energy
+                self._last_fetch_date = date_str
+                self.async_write_ha_state()
+        except Exception as e:
+            _LOGGER.error("Error fetching daily solar energy: %s", e)
+        finally:
+            self._fetch_in_progress = False

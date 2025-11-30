@@ -46,6 +46,15 @@ class EcoflowApiClient(ABC):
     def configure_device(self, device_data: DeviceData):
         pass
 
+    async def fetch_daily_solar_energy(
+        self, device_sn: str, date_str: str
+    ) -> int | None:
+        """Fetch daily solar energy for a device.
+
+        This is only supported by the public API. Returns None for other clients.
+        """
+        return None
+
     def add_device(self, device):
         self.devices[device.device_data.sn] = device
 
