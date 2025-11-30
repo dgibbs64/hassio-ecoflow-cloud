@@ -12,6 +12,9 @@ from . import EcoflowApiClient
 
 _LOGGER = logging.getLogger(__name__)
 
+# API code for fetching solar energy savings data
+_SOLAR_SAVINGS_CODE = "BK621-App-HOME-SAVING-CURRENCY-FLOW-earnings-progress_arc-NOTDISTINGUISH-MASTER_DATA"
+
 # from FB
 # client_id limits for MQTT connections
 # If you are using MQTT to connect to the API be aware that only 10 unique client IDs are allowed per day.
@@ -159,7 +162,7 @@ class EcoflowPublicApiClient(EcoflowApiClient):
                 "sn": device_sn,
                 "params.beginTime": begin_time,
                 "params.endTime": end_time,
-                "params.code": "BK621-App-HOME-SAVING-CURRENCY-FLOW-earnings-progress_arc-NOTDISTINGUISH-MASTER_DATA",
+                "params.code": _SOLAR_SAVINGS_CODE,
             }
             response = await self.call_api("/device/quota", params)
             if "data" in response and "data" in response["data"]:

@@ -662,7 +662,7 @@ class SolarSavingsSensorEntity(SensorEntity, EcoFlowAbstractEntity):
     """Sensor entity for total solar energy savings (monetary value)."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.TOTAL
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:cash-multiple"
     _attr_suggested_display_precision = 2
     _attr_native_value = 0
@@ -679,9 +679,8 @@ class SolarSavingsSensorEntity(SensorEntity, EcoFlowAbstractEntity):
     ):
         super().__init__(client, device, title, "solar_savings")
         self._attr_entity_registry_enabled_default = enabled
-        self._last_update = dt.utcnow().replace(
-            year=2000, month=1, day=1, hour=0, minute=0, second=0
-        )
+        # Initialize to a date far in the past to trigger immediate update
+        self._last_update = dt.utcnow() - timedelta(days=365)
         self._currency_unit: str | None = None
 
     @property
@@ -702,12 +701,12 @@ class SolarSavingsSensorEntity(SensorEntity, EcoFlowAbstractEntity):
     async def _fetch_solar_savings(self) -> None:
         """Fetch solar savings data from the API."""
         try:
-            # Get today's date range
-            now = dt.now()
-            begin_time = now.replace(hour=0, minute=0, second=0).strftime(
+            # Get today's date range using UTC for consistency
+            now = dt.utcnow()
+            begin_time = now.replace(hour=0, minute=0, second=0, microsecond=0).strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
-            end_time = now.replace(hour=23, minute=59, second=59).strftime(
+            end_time = now.replace(hour=23, minute=59, second=59, microsecond=0).strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
 
