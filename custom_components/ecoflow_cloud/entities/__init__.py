@@ -140,7 +140,11 @@ class EcoFlowDictEntity(EcoFlowAbstractDataEntity):
         # self.async_on_remove(d.dispose)
 
     def _handle_coordinator_update(self) -> None:
-        if self.coordinator.data.changed:
+        changed = getattr(self.coordinator.data, "changed", None)
+        if changed is False:
+            return
+
+        if changed or changed is None:
             self._updated(self.coordinator.data.data_holder.params)
         elif self._device.status_tracker.is_offline:  # Device is offline
             # Reset sensors that should reset to default values
