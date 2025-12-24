@@ -140,7 +140,11 @@ class EcoFlowDictEntity(EcoFlowAbstractDataEntity):
         # self.async_on_remove(d.dispose)
 
     def _handle_coordinator_update(self) -> None:
-        changed = getattr(self.coordinator.data, "changed", None)
+        try:
+            changed = getattr(self.coordinator.data, "changed", None)
+        except Exception:
+            changed = None
+
         if changed is False:
             return
 
