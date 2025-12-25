@@ -82,9 +82,9 @@ class EcoflowMQTTClient:
         self,
         client: Client,
         userdata: Any,
-        disconnect_flags: DisconnectFlags,
-        reason_code: ReasonCode,
-        properties: Properties | None,
+        disconnect_flags_or_rc: DisconnectFlags | int | ReasonCode = None,
+        reason_code: ReasonCode | None = None,
+        properties: Properties | None = None,
     ) -> None:
         if not self.connected:
             # from homeassistant/components/mqtt/client.py
@@ -92,8 +92,17 @@ class EcoflowMQTTClient:
             # when there is a broken pipe error.
             return
         self.connected = False
-        if reason_code.is_failure:
-            self.__log_with_reason("disconnect", client, userdata, reason_code)
+
+        # Handle both paho-mqtt v1 (3 args) and v2 (5 args) callback styles
+        if reason_code is None:
+            # v1 style: disconnect_flags_or_rc is the return code
+            rc = disconnect_flags_or_rc
+            if rc is not None and rc != 0:
+                _LOGGER.error("MQTT disconnect: rc=%s (%s)", rc, self.__mqtt_info.client_id)
+        else:
+            # v2 style
+            if reason_code.is_failure:
+                self.__log_with_reason("disconnect", client, userdata, reason_code)
 
     @callback
     def _on_message(self, client, userdata, message: MQTTMessage):
