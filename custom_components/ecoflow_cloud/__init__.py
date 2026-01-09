@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 from custom_components.ecoflow_cloud.api import EcoflowApiClient
 import logging
@@ -17,11 +18,12 @@ ECOFLOW_DOMAIN = "ecoflow_cloud"
 CONFIG_VERSION = 9
 
 _PLATFORMS = {
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
-    Platform.BUTTON,
 }
 
 ATTR_STATUS_SN = "SN"
@@ -113,9 +115,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             new_options[CONF_DEVICE_LIST][sn] = new_data[CONF_DEVICE_LIST][sn].pop("options")
 
             if "refresh_period" in new_options[CONF_DEVICE_LIST][sn]:
-                new_options[CONF_DEVICE_LIST][sn][OPTS_REFRESH_PERIOD_SEC] = new_options[CONF_DEVICE_LIST][sn].pop(
-                    "refresh_period"
-                )
+                new_options[CONF_DEVICE_LIST][sn][OPTS_REFRESH_PERIOD_SEC] = new_options[CONF_DEVICE_LIST][sn].pop("refresh_period")
 
         updated = hass.config_entries.async_update_entry(config_entry, version=9, data=new_data, options=new_options)
         _LOGGER.info("Config entries updated to version %d", config_entry.version)
@@ -188,6 +188,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     for sn, device_data in devices_list.items():
         device = api_client.configure_device(device_data)
         device.configure(hass)
+        # Configure device-specific coordinators (e.g., historical data).
+        configure_history = getattr(device, "configure_history", None)
+        if callable(configure_history):
+            try:
+                configure_history(hass, api_client)
+            except Exception as exc:
+                _LOGGER.error("Failed to configure history for %s: %s", sn, exc, exc_info=True)
 
     await hass.async_add_executor_job(api_client.start)
     hass.data[ECOFLOW_DOMAIN][entry.entry_id] = api_client
@@ -209,6 +216,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         return False
 
     client = hass.data[ECOFLOW_DOMAIN].pop(entry.entry_id)
+
+    # Best-effort cleanup for devices that run background tasks (e.g., history coordinators)
+    try:
+        devices = getattr(client, "devices", None)
+        if isinstance(devices, dict):
+            cleanups = []
+            for dev in devices.values():
+                cleanup = getattr(dev, "async_cleanup", None)
+                if callable(cleanup):
+                    cleanups.append(cleanup())
+            if cleanups:
+                await asyncio.gather(*cleanups, return_exceptions=True)
+    except Exception:
+        _LOGGER.debug("Failed to cleanup devices on unload", exc_info=True)
+
     client.stop()
     return True
 
