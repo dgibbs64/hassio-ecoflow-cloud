@@ -34,26 +34,91 @@ class EcoflowPublicApiClient(EcoflowApiClient):
         _LOGGER.info("Requesting all devices")
         response = await self.call_api("GET", "/device/list")
         result = []
+
+        def _as_int(value) -> int | None:
+            try:
+                if value is None:
+                    return None
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+
+        def _as_nonempty_str(value) -> str | None:
+            if value is None:
+                return None
+            text = str(value).strip()
+            if not text:
+                return None
+            if text.casefold() in {"undefined", "null", "none"}:
+                return None
+            return text
+
+        def _get_first_int(device: dict, keys: list[str]) -> int | None:
+            for key in keys:
+                if key in device:
+                    candidate = _as_int(device.get(key))
+                    if candidate is not None:
+                        return candidate
+            for container_key in ("productInfo", "product", "productInfoVo"):
+                container = device.get(container_key)
+                if isinstance(container, dict):
+                    for key in keys:
+                        if key in container:
+                            candidate = _as_int(container.get(key))
+                            if candidate is not None:
+                                return candidate
+            return None
+
+        def _summarize_device(device: dict) -> dict:
+            keys_of_interest = {
+                "sn", "deviceName", "productName", "productType",
+                "productTypeId", "productDetail", "productDetailId", "online",
+            }
+            summary: dict[str, object] = {k: device[k] for k in keys_of_interest if k in device}
+            for key, value in device.items():
+                if key in summary:
+                    continue
+                if any(t in str(key).casefold() for t in ("model", "type", "name", "detail", "series")):
+                    summary[key] = value
+            return summary
+
         for device in response["data"]:
-            _LOGGER.debug(str(device))
-            sn = device["sn"]
-            product_name = device.get("productName", "undefined")
-            if product_name == "undefined":
+            sn = device.get("sn")
+            if not sn:
+                _LOGGER.debug("API /device/list returned device without sn: %s", _summarize_device(device))
+                continue
+
+            raw_product_name = device.get("productName")
+            product_name = _as_nonempty_str(raw_product_name)
+
+            # Stable numeric identifiers: these tend to be more reliable than productName.
+            product_type = _get_first_int(device, ["productType", "productTypeId"])
+            product_detail = _get_first_int(device, ["productDetail", "productDetailId"])
+
+            # Stream AC/Pro/Ultra batteries are observed as productType=58 in quota payloads.
+            # Some payloads also carry productDetail=5.
+            if product_type == 58 or (product_type is None and product_detail == 5):
+                product_name = "Stream Battery"
+
+            # If productName is missing/undefined, try to infer from deviceName.
+            if product_name is None:
                 from ..devices.registry import device_by_product
 
                 device_list = list(device_by_product.keys())
-                device_list.sort(key=len, reverse=True)
+                device_name_raw = _as_nonempty_str(device.get("deviceName")) or ""
+
                 for devicetype in device_list:
-                    if "deviceName" in device and device["deviceName"].lower().startswith(devicetype.lower()):
+                    if device_name_raw.casefold().startswith(devicetype.casefold()):
                         product_name = devicetype
                         break
 
-                # Fallback for Stream family: EcoFlow often prefixes deviceName with
-                # a Stream variant not present in `device_by_product`.
-                if product_name == "undefined" and "deviceName" in device:
-                    dn = str(device.get("deviceName", ""))
-                    if dn.casefold().startswith("stream"):
-                        product_name = "Stream Battery"
+                # Stream family fallback: deviceName often starts with a Stream variant.
+                if product_name is None and device_name_raw.casefold().startswith("stream"):
+                    product_name = "Stream Battery"
+
+            # Last resort: keep something non-empty for the UI/logs.
+            if product_name is None:
+                product_name = "undefined"
 
             # Canonicalize to a known product key when EcoFlow varies naming
             # (e.g. "Stream AC Pro" / "Stream Max").
@@ -63,6 +128,13 @@ class EcoflowPublicApiClient(EcoflowApiClient):
             device_name = device.get("deviceName", f"{product_name}-{sn}")
             status = int(device["online"])
             result.append(self._create_device_info(sn, device_name, product_name, status))
+
+            if product_name == "undefined":
+                _LOGGER.debug(
+                    "API /device/list could not infer productName for sn=%s; summary=%s",
+                    sn,
+                    _summarize_device(device),
+                )
 
         return result
 
