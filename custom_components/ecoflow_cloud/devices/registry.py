@@ -4,9 +4,11 @@ from typing import Type
 from custom_components.ecoflow_cloud.devices import BaseDevice, DiagnosticDevice
 
 from custom_components.ecoflow_cloud.devices.internal import (
+    alternator as internal_alternator,
     delta2 as internal_delta2,
     delta2_max as internal_delta2_max,
     delta3 as internal_delta3,
+    delta3_1500 as internal_delta3_1500,
     delta_max as internal_delta_max,
     delta_mini as internal_delta_mini,
     delta_pro as internal_delta_pro,
@@ -21,6 +23,7 @@ from custom_components.ecoflow_cloud.devices.internal import (
     river_mini as internal_river_mini,
     river_pro as internal_river_pro,
     smart_meter as internal_smart_meter,
+    smart_plug as internal_smart_plug,
     stream_ac as internal_stream_ac,
     wave2 as internal_wave2,
 )
@@ -49,8 +52,10 @@ from custom_components.ecoflow_cloud.devices.public import (
 
 devices: OrderedDict[str, Type[BaseDevice]] = OrderedDict[str, Type[BaseDevice]](
     {
+        "ALTERNATOR": internal_alternator.Alternator,
         "DELTA_2": internal_delta2.Delta2,
         "DELTA_3": internal_delta3.Delta3,
+        "DELTA_3_1500": internal_delta3_1500.Delta31500,
         "RIVER_2": internal_river2.River2,
         "RIVER_2_MAX": internal_river2_max.River2Max,
         "RIVER_2_PRO": internal_river2_pro.River2Pro,
@@ -67,6 +72,7 @@ devices: OrderedDict[str, Type[BaseDevice]] = OrderedDict[str, Type[BaseDevice]]
         "GLACIER": internal_glacier.Glacier,
         "WAVE_2": internal_wave2.Wave2,
         "SMART_METER": internal_smart_meter.SmartMeter,
+        "SMART_PLUG": internal_smart_plug.SmartPlug,
         "STREAM_AC": internal_stream_ac.StreamAC,
         "STREAM_PRO": internal_stream_ac.StreamAC,
         "STREAM_ULTRA": internal_stream_ac.StreamAC,
@@ -91,9 +97,8 @@ device_by_product: OrderedDict[str, Type[BaseDevice]] = OrderedDict[str, Type[Ba
         "Delta Pro 3": public_delta_pro_3.DeltaPro3,
         "Power Kits": public_powerkit.PowerKit,
         "Smart Meter": public_smart_meter.SmartMeter,
-        "Stream AC": public_stream_ac.StreamAC,
-        "Stream PRO": public_stream_ac.StreamAC,
-        "Stream Ultra": public_stream_ac.StreamAC,
+        # Stream Series: keep batteries grouped, microinverter separate.
+        "Stream Battery": public_stream_ac.StreamAC,
         "Stream Microinverter": public_stream_microinverter.StreamMicroinveter,
         "Smart Home Panel": public_smart_home_panel.SmartHomePanel,
         "Smart Home Panel 2": public_smart_home_panel_2.SmartHomePanel2,
@@ -103,3 +108,50 @@ device_by_product: OrderedDict[str, Type[BaseDevice]] = OrderedDict[str, Type[Ba
 )
 
 device_support_sub_devices = ["Power Kits"]
+
+
+def _canonicalize_product_name(product_name: str) -> str:
+    """Return a canonical product name key used in `device_by_product`.
+
+    EcoFlow product names vary across regions/app versions (e.g. "Stream AC Pro",
+    "Stream Max"). For the integration we treat most Stream batteries as the same
+    device class, so we canonicalize unknown Stream-* variants to an existing key.
+    """
+
+    name = (product_name or "").strip()
+    if not name:
+        return name
+
+    lowered = name.casefold()
+
+    # Stream family heuristic: keep Stream Microinverter distinct.
+    if lowered.startswith("stream"):
+        if "microinverter" in lowered:
+            return "Stream Microinverter" if "Stream Microinverter" in device_by_product else name
+        # Any other Stream battery-like variant falls back to Stream Battery.
+        if "Stream Battery" in device_by_product:
+            return "Stream Battery"
+
+    # Exact match next.
+    if name in device_by_product:
+        return name
+
+    # Case-insensitive exact match fallback.
+    for known in device_by_product.keys():
+        if known.casefold() == lowered:
+            return known
+
+    return name
+
+
+def device_class_for_product_name(product_name: str) -> Type[BaseDevice] | None:
+    """Resolve a Home Assistant device class from an EcoFlow product name."""
+
+    canonical = _canonicalize_product_name(product_name)
+    return device_by_product.get(canonical)
+
+
+def canonical_product_name(product_name: str) -> str:
+    """Public helper to normalize EcoFlow productName strings."""
+
+    return _canonicalize_product_name(product_name)
