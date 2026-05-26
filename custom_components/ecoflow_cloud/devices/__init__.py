@@ -76,7 +76,7 @@ class BaseDevice(ABC):
             status_callback=self.status_tracker,
         )
 
-    def configure(self, hass: HomeAssistant):
+    def configure(self, hass: HomeAssistant, client: EcoflowApiClient):
         self.coordinator = DeviceDataCoordinator(hass, self.data, self.device_data.options.refresh_period)
 
     @staticmethod
