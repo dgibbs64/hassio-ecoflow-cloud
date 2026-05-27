@@ -30,7 +30,14 @@ UNIT_TIMEOUT_OPTIONS = {
     "24 hr": 1440,
 }
 
-UNIT_TIMEOUT_OPTIONS_LIMITED = {"Never": 0, "30 min": 30, "1 hr": 60, "2 hr": 120, "6 hr": 360, "12 hr": 720}
+UNIT_TIMEOUT_OPTIONS_LIMITED = {
+    "Never": 0,
+    "30 min": 30,
+    "1 hr": 60,
+    "2 hr": 120,
+    "6 hr": 360,
+    "12 hr": 720,
+}
 
 AC_TIMEOUT_OPTIONS = {
     "Never": 0,
@@ -72,15 +79,36 @@ DC_TIMEOUT_OPTIONS_LIMITED = {
     "24 hr": 1440,
 }
 
-DC_CHARGE_CURRENT_OPTIONS = {"4A": 4000, "6A": 6000, "8A": 8000}
+DC_CHARGE_CURRENT_OPTIONS = {
+    "4A": 4000,
+    "6A": 6000,
+    "8A": 8000,
+}
 
-MAIN_MODE_OPTIONS = {"Cool": 0, "Heat": 1, "Fan": 2}
+MAIN_MODE_OPTIONS = {
+    "Cool": 0,
+    "Heat": 1,
+    "Fan": 2,
+}
 
-FAN_MODE_OPTIONS = {"Low": 0, "Medium": 1, "High": 2}
+FAN_MODE_OPTIONS = {
+    "Low": 0,
+    "Medium": 1,
+    "High": 2,
+}
 
-REMOTE_MODE_OPTIONS = {"Startup": 1, "Standby": 2, "Shutdown": 3}
+REMOTE_MODE_OPTIONS = {
+    "Startup": 1,
+    "Standby": 2,
+    "Shutdown": 3,
+}
 
-POWER_SUB_MODE_OPTIONS = {"Max": 0, "Sleep": 1, "Eco": 2, "Manual": 3}
+POWER_SUB_MODE_OPTIONS = {
+    "Max": 0,
+    "Sleep": 1,
+    "Eco": 2,
+    "Manual": 3,
+}
 
 POWER_SUPPLY_PRIORITY_OPTIONS = {"Prioritize power supply": 0, "Prioritize power storage": 1}
 CUSTOM_LOAD_POWER = "Custom Load Power"
@@ -439,7 +467,12 @@ BATTERY_N_FORCE_CHARGE = "Battery %i Force Charge"
 RELAY_N_OPERATION_COUNT = "Relay %i Operation Count"
 SMART_BACKUP_MODE = "Operating Mode"
 
-SMART_BACKUP_MODE_OPTIONS = {"None": 0, "TOU": 1, "Self-powered": 2, "Scheduled tasks": 3}
+SMART_BACKUP_MODE_OPTIONS = {
+    "None": 0,
+    "TOU": 1,
+    "Self-powered": 2,
+    "Scheduled tasks": 3,
+}
 
 # Alternator 800W
 ALTERNATOR_OPERATION_MODE_OPTIONS = {

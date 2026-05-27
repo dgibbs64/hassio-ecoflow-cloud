@@ -1,14 +1,7 @@
-from typing import cast
-from custom_components.ecoflow_cloud.device_data import DeviceData
-from custom_components.ecoflow_cloud.devices import EcoflowDeviceInfo
-from datetime import timezone
-from custom_components.ecoflow_cloud.api.public_api import EcoflowPublicApiClient
-from datetime import datetime
-from datetime import timedelta
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from typing import Any, NamedTuple
 import asyncio
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, NamedTuple, cast
 
 import jsonpath_ng.ext as jp
 
@@ -16,10 +9,16 @@ from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt
 
 from custom_components.ecoflow_cloud.api import EcoflowApiClient
-from custom_components.ecoflow_cloud.devices import BaseDevice, const
+from custom_components.ecoflow_cloud.api.public_api import EcoflowPublicApiClient
+from custom_components.ecoflow_cloud.device_data import DeviceData
+from custom_components.ecoflow_cloud.devices import BaseDevice, EcoflowDeviceInfo, const
 from custom_components.ecoflow_cloud.devices.public.data_bridge import to_plain
+from custom_components.ecoflow_cloud.devices.public.stream_pv_helpers import StreamPvWattsSensorEntity
 from custom_components.ecoflow_cloud.entities import BaseSensorEntity
 from custom_components.ecoflow_cloud.number import BatteryBackupLevel
 from custom_components.ecoflow_cloud.sensor import (
@@ -38,13 +37,7 @@ from custom_components.ecoflow_cloud.sensor import (
     VoltSensorEntity,
     WattsSensorEntity,
 )
-from custom_components.ecoflow_cloud.devices.public.stream_pv_helpers import (
-    StreamPvWattsSensorEntity,
-)
-from homeassistant.util import dt
 from custom_components.ecoflow_cloud.switch import EnabledEntity
-
-import logging
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -162,19 +155,17 @@ class StreamACHistoryUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception:
             # Return empty dict on error so we can proceed with other requests
             # The caller handles logging/retry if needed (though existing code just ignored errors)
-            _LOGGER.debug(f"Failed to fetch historical data for code {code}", exc_info=True)
+            _LOGGER.debug("Failed to fetch historical data for code %s", code, exc_info=True)
             return {}
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch historical data from the API."""
         self.last_check = dt.utcnow()
-        # now = dt.utcnow()
         time_ranges = self._get_time_ranges()
 
         history: dict[str, Any] = {}
         last_check_iso = self.last_check.isoformat()
 
-        # params["history.mainSn"] = self._device.device_info.sn
         history["last_history_check"] = last_check_iso
 
         _LOGGER.debug(
@@ -248,6 +239,10 @@ class StreamAC(BaseDevice):
     def configure(self, hass: HomeAssistant, client: EcoflowApiClient):
         super().configure(hass, client)
         self.history_coordinator = StreamACHistoryUpdateCoordinator(hass, cast(EcoflowPublicApiClient, client), self)
+
+    async def async_restore_state(self):
+        if self.history_coordinator:
+            await self.history_coordinator.async_refresh()
 
     def flat_json(self) -> bool:
         return False
