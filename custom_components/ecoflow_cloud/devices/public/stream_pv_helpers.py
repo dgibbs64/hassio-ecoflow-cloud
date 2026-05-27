@@ -29,6 +29,7 @@ References:
 - https://github.com/tolwi/hassio-ecoflow-cloud/issues/584
 - https://github.com/tolwi/hassio-ecoflow-cloud/issues/582
 """
+
 from typing import Any
 
 from custom_components.ecoflow_cloud.sensor import WattsSensorEntity
@@ -57,10 +58,7 @@ class StreamPvWattsSensorEntity(WattsSensorEntity):
         auto_enable: bool = False,
     ) -> None:
         if not amp_key.endswith("Amp"):
-            raise ValueError(
-                f"StreamPvWattsSensorEntity expects an amp_key ending in 'Amp', "
-                f"got: {amp_key!r}"
-            )
+            raise ValueError(f"StreamPvWattsSensorEntity expects an amp_key ending in 'Amp', got: {amp_key!r}")
         self._amp_key = amp_key
         self._vol_key = amp_key[:-3] + "Vol"  # plugInInfoPv2Amp -> plugInInfoPv2Vol
         synthetic_key = f"{self._SYNTHETIC_KEY_PREFIX}_{amp_key}"

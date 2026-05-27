@@ -36,8 +36,11 @@ class DataStatusCallback(Protocol):
 
 
 class _NoOpStatusCallback:
-    def on_explicit_status(self, online: bool) -> None: pass
-    def on_data_received(self) -> None: pass
+    def on_explicit_status(self, online: bool) -> None:
+        pass
+
+    def on_data_received(self) -> None:
+        pass
 
 
 class EcoflowDataHolder:

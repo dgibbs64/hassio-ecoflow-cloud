@@ -129,6 +129,7 @@ def _create_delta3_ac_charging_power_command(value: int, device_sn: str) -> "Del
     so pdata is crafted manually. The resulting wire bytes match the
     app's captured packets exactly: ``b0 03 <value_varint> e8 07 00``.
     """
+
     def _encode_varint(v: int) -> bytes:
         out = bytearray()
         while True:
@@ -357,9 +358,7 @@ class Delta3(BaseInternalDevice):
                 const.AC_CHARGING_POWER,
                 100,
                 1500,
-                lambda value: _create_delta3_ac_charging_power_command(
-                    int(value), device.device_data.sn
-                ),
+                lambda value: _create_delta3_ac_charging_power_command(int(value), device.device_data.sn),
             ),
             BatteryBackupLevel(
                 client,

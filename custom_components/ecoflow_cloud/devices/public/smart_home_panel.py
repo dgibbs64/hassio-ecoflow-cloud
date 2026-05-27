@@ -57,40 +57,76 @@ class SmartHomePanel(BaseDevice):
         return [
             LevelSensorEntity(client, self, "heartbeat.backupBatPer", const.COMBINED_BATTERY_LEVEL),
             LevelSensorEntity(client, self, "heartbeat.energyInfos[0].batteryPercentage", const.BATTERY_N_LEVEL % 1),
-            LevelSensorEntity(client, self, "heartbeat.energyInfos[1].batteryPercentage", const.BATTERY_N_LEVEL % 2, False),
+            LevelSensorEntity(
+                client, self, "heartbeat.energyInfos[1].batteryPercentage", const.BATTERY_N_LEVEL % 2, False
+            ),
             RemainSensorEntity(client, self, "heartbeat.backupChaTime", const.REMAINING_TIME),
-            RemainSensorEntity(client, self, "heartbeat.energyInfos[0].chargeTime", const.BATTERY_N_CHARGE_REMAINING_TIME % 1, False),
-            RemainSensorEntity(client, self, "heartbeat.energyInfos[1].chargeTime", const.BATTERY_N_CHARGE_REMAINING_TIME % 2, False),
-            RemainSensorEntity(client, self, "heartbeat.energyInfos[0].dischargeTime", const.BATTERY_N_DISCHARGE_REMAINING_TIME % 1, False),
-            RemainSensorEntity(client, self, "heartbeat.energyInfos[1].dischargeTime", const.BATTERY_N_DISCHARGE_REMAINING_TIME % 2, False),
+            RemainSensorEntity(
+                client, self, "heartbeat.energyInfos[0].chargeTime", const.BATTERY_N_CHARGE_REMAINING_TIME % 1, False
+            ),
+            RemainSensorEntity(
+                client, self, "heartbeat.energyInfos[1].chargeTime", const.BATTERY_N_CHARGE_REMAINING_TIME % 2, False
+            ),
+            RemainSensorEntity(
+                client,
+                self,
+                "heartbeat.energyInfos[0].dischargeTime",
+                const.BATTERY_N_DISCHARGE_REMAINING_TIME % 1,
+                False,
+            ),
+            RemainSensorEntity(
+                client,
+                self,
+                "heartbeat.energyInfos[1].dischargeTime",
+                const.BATTERY_N_DISCHARGE_REMAINING_TIME % 2,
+                False,
+            ),
             TempSensorEntity(client, self, "heartbeat.energyInfos[0].emsBatTemp", const.BATTERY_N_TEMP % 1),
             TempSensorEntity(client, self, "heartbeat.energyInfos[1].emsBatTemp", const.BATTERY_N_TEMP % 2, False),
             InWattsSensorEntity(client, self, "heartbeat.energyInfos[0].lcdInputWatts", const.BATTERY_N_IN_POWER % 1)
-            .with_energy().with_icon("mdi:transmission-tower"),
-            InWattsSensorEntity(client, self, "heartbeat.energyInfos[1].lcdInputWatts", const.BATTERY_N_IN_POWER % 2, False)
-            .with_energy().with_icon("mdi:transmission-tower"),
+            .with_energy()
+            .with_icon("mdi:transmission-tower"),
+            InWattsSensorEntity(
+                client, self, "heartbeat.energyInfos[1].lcdInputWatts", const.BATTERY_N_IN_POWER % 2, False
+            )
+            .with_energy()
+            .with_icon("mdi:transmission-tower"),
             OutWattsSensorEntity(client, self, "heartbeat.energyInfos[0].outputPower", const.BATTERY_N_OUT_POWER % 1)
-            .with_energy().with_icon("mdi:home-battery"),
-            OutWattsSensorEntity(client, self, "heartbeat.energyInfos[1].outputPower", const.BATTERY_N_OUT_POWER % 2, False)
-            .with_energy().with_icon("mdi:home-battery"),
+            .with_energy()
+            .with_icon("mdi:home-battery"),
+            OutWattsSensorEntity(
+                client, self, "heartbeat.energyInfos[1].outputPower", const.BATTERY_N_OUT_POWER % 2, False
+            )
+            .with_energy()
+            .with_icon("mdi:home-battery"),
             InEnergySensorEntity(client, self, "heartbeat.gridDayWatth", const.POWER_GRID_TODAY),
             OutEnergySensorEntity(client, self, "heartbeat.backupDayWatth", const.BATTERY_TODAY),
             VoltSensorEntity(client, self, "'gridInfo.gridVol'", const.POWER_GRID_VOLTAGE, diagnostic=True),
             FrequencySensorEntity(client, self, "'gridInfo.gridFreq'", const.POWER_GRID_FREQUENCY, diagnostic=True),
             *[
-                AmpSensorEntity(client, self, f"'loadChCurInfo.cur'[{x+10}]", const.BATTERY_N_CURRENT % (x+1), False, diagnostic=True)
+                AmpSensorEntity(
+                    client,
+                    self,
+                    f"'loadChCurInfo.cur'[{x + 10}]",
+                    const.BATTERY_N_CURRENT % (x + 1),
+                    False,
+                    diagnostic=True,
+                )
                 for x in range(2)
             ],
             *[
-                AmpSensorEntity(client, self, f"'loadChCurInfo.cur'[{x}]", const.CIRCUIT_N_CURRENT % (x+1), False, diagnostic=True)
+                AmpSensorEntity(
+                    client, self, f"'loadChCurInfo.cur'[{x}]", const.CIRCUIT_N_CURRENT % (x + 1), False, diagnostic=True
+                )
                 for x in range(10)
             ],
         ]
 
     def binary_sensors(self, client: EcoflowApiClient) -> list[BinarySensorEntity]:
         return [
-            MiscBinarySensorEntity(client, self, "heartbeat.gridSta", const.POWER_GRID)
-            .with_icon("mdi:transmission-tower"),
+            MiscBinarySensorEntity(client, self, "heartbeat.gridSta", const.POWER_GRID).with_icon(
+                "mdi:transmission-tower"
+            ),
         ]
 
     def numbers(self, client: EcoflowApiClient) -> list[NumberEntity]:
@@ -296,7 +332,7 @@ class SmartHomePanel(BaseDevice):
             ch_sta if ch_sta is not None else p["chSta"],
             is_enable if is_enable is not None else p["isEnable"],
         )
-    
+
     def _batteryChargeSwitch(self, client: EcoflowApiClient, index: int, enabled: bool = True) -> SwitchEntity:
         return (
             EnabledEntity(

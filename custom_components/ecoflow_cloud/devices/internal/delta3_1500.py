@@ -63,6 +63,7 @@ class Delta31500ChargingStateSensorEntity(ChargingStateSensorEntity):
             return super(ChargingStateSensorEntity, self)._update_value("charging")
         return False
 
+
 class BypassBanSwitch(EnabledEntity):
     """Grid-bypass switch controlled by the EcoFlow ``bypassBan`` command.
 

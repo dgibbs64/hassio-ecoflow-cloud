@@ -29,7 +29,7 @@ from custom_components.ecoflow_cloud.sensor import (
     QuotaStatusSensorEntity,
     TempSensorEntity,
     VoltSensorEntity,
-    MilliampSensorEntity
+    MilliampSensorEntity,
 )
 from custom_components.ecoflow_cloud.switch import EnabledEntity
 
@@ -88,10 +88,8 @@ class SmartPlug(BaseInternalDevice):
             params = self._parse_smartplug_packet(raw_data)
             return {"params": params}
         except Exception as e:
-            _LOGGER.error(
-                f"[SmartPlug] Data processing failed: {e}", exc_info=True)
-            _LOGGER.debug(
-                "[SmartPlug] Attempting JSON fallback after protobuf failure")
+            _LOGGER.error(f"[SmartPlug] Data processing failed: {e}", exc_info=True)
+            _LOGGER.debug("[SmartPlug] Attempting JSON fallback after protobuf failure")
             try:
                 return super()._prepare_data(raw_data)
             except Exception as e2:
@@ -116,7 +114,7 @@ class SmartPlug(BaseInternalDevice):
 
             _LOGGER.debug(f"parsing MQTT package with cmdFunc={msg.cmdFunc}, cmdId={msg.cmdId}")
 
-            if (msg.cmdFunc != pb2.CMD_FUNC_WN_SMART_PLUG):
+            if msg.cmdFunc != pb2.CMD_FUNC_WN_SMART_PLUG:
                 continue
             elif msg.cmdId == pb2.CMD_ID_DATA:
                 result.update(_read_data(msg.pdata))
@@ -131,6 +129,7 @@ class SmartPlug(BaseInternalDevice):
 
         _LOGGER.debug(f"result: {result}")
         return result
+
 
 class SmartPlug3CommandMessage(PrivateAPIMessageProtocol):
     """Message wrapper for SmartPlug protobuf commands."""
@@ -189,11 +188,13 @@ def _create_set_brightness_message(value: int, device_sn: str):
 
     return _create_send_header_message(pb2.CMD_ID_SET_BRIGHTNESS, device_sn, payload)
 
+
 def _create_set_max_watts_message(value: int, device_sn: str):
     payload = pb2.WnMaxWattsPack()
     payload.maxWatts = value
 
     return _create_send_header_message(pb2.CMD_ID_SET_MAX_WATTS, device_sn, payload)
+
 
 def _read_data(pdata: bytes) -> dict[str, Any]:
     msg = pb2.WnPlugHeartbeatPack()
@@ -205,6 +206,7 @@ def _read_data(pdata: bytes) -> dict[str, Any]:
 
     return result
 
+
 def _read_change_switch_status(pdata: bytes) -> dict[str, Any]:
     msg = pb2.WnPlugSwitchMessage()
     msg.ParseFromString(pdata)
@@ -212,12 +214,14 @@ def _read_change_switch_status(pdata: bytes) -> dict[str, Any]:
         "switchSta": True if msg.switchSta else False,
     }
 
+
 def _read_set_brightness(pdata: bytes) -> dict[str, Any]:
     msg = pb2.WnBrightnessPack()
     msg.ParseFromString(pdata)
     return {
         "brightness": msg.brightness,
     }
+
 
 def _read_set_max_watts(pdata: bytes) -> dict[str, Any]:
     msg = pb2.WnMaxWattsPack()

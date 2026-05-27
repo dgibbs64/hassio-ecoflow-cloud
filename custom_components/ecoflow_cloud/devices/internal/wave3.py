@@ -88,6 +88,7 @@ class Wave3CommandMessage(PrivateAPIMessageProtocol):
             result["header"].pop("seq", None)
         return {type(self._packet).__name__: result}
 
+
 def _create_wave3_command(device_sn: str, **kwargs: Any) -> Wave3CommandMessage | dict[str, Any]:
     try:
         cw = wave3_pb2.Wave3ConfigWrite()
@@ -113,8 +114,14 @@ def _create_wave3_command(device_sn: str, **kwargs: Any) -> Wave3CommandMessage 
         h.device_sn = device_sn
         h.seq = random.randint(10, 999)
 
-        for attr, val in [("enc_type", 1), ("check_type", 3), ("version", 3), ("payload_ver", 1), ("is_rw_cmd", 1),
-                          ("from", "Android")]:
+        for attr, val in [
+            ("enc_type", 1),
+            ("check_type", 3),
+            ("version", 3),
+            ("payload_ver", 1),
+            ("is_rw_cmd", 1),
+            ("from", "Android"),
+        ]:
             try:
                 setattr(h, attr, val)
             except AttributeError:
@@ -129,7 +136,6 @@ def _create_wave3_command(device_sn: str, **kwargs: Any) -> Wave3CommandMessage 
 
 
 class Wave3(BaseInternalDevice):
-
     def _prepare_data(self, raw_data: bytes) -> dict[str, Any]:
         try:
             msg = wave3_pb2.Wave3SetMessage()
@@ -201,8 +207,11 @@ class Wave3(BaseInternalDevice):
             if not msg_obj.HasField("wave_mode_info"):
                 return
 
-            current_mode = msg_obj.wave_operating_mode if msg_obj.HasField(
-                "wave_operating_mode") else self.data.params.get("wave_operating_mode", 0)
+            current_mode = (
+                msg_obj.wave_operating_mode
+                if msg_obj.HasField("wave_operating_mode")
+                else self.data.params.get("wave_operating_mode", 0)
+            )
             mode_list = msg_obj.wave_mode_info.list_info
 
             if current_mode < 1 or current_mode >= len(mode_list):
@@ -245,20 +254,17 @@ class Wave3(BaseInternalDevice):
             WattsSensorEntity(client, self, "pow_get_bms", const.DC_BATTERY_POWER),
             InWattsSensorEntity(client, self, "pow_get_pv", const.SOLAR_IN_POWER),
             WattsSensorEntity(client, self, "pow_get_self_consume", const.SELF_CONSUMPTION_POWER, False),
-
             # Battery and Water Entities
             LevelSensorEntity(client, self, "bms_batt_soc", const.MAIN_BATTERY_LEVEL),
             LevelSensorEntity(client, self, "condensate_water_level", const.WATER_LEVEL),
             RemainSensorEntity(client, self, "bms_dsg_rem_time", const.DISCHARGE_REMAINING_TIME),
             RemainSensorEntity(client, self, "bms_chg_rem_time", const.CHARGE_REMAINING_TIME),
             RemainSensorEntity(client, self, "power_off_delay_remaining", const.POWER_OFF_DELAY_REMAINING_TIME),
-
             # Temperature Entities
             TempSensorEntity(client, self, "temp_ambient", const.AMBIENT_TEMPERATURE),
             TempSensorEntity(client, self, "temp_indoor_supply_air", const.INDOOR_SUPPLY_AIR_TEMP, False),
             TempSensorEntity(client, self, "temp_condenser", const.CONDENSER_TEMP, False),
             TempSensorEntity(client, self, "temp_evaporator", const.EVAPORATOR_TEMP, False),
-
             # Diagnostics
             MiscSensorEntity(client, self, "bms_err_code", "BMS Error Code", False),
         ]
@@ -266,37 +272,85 @@ class Wave3(BaseInternalDevice):
     def numbers(self, client: EcoflowApiClient) -> list[NumberEntity]:
         sn = self.device_info.sn
         return [
-            LevelEntity(client, self, "lcd_light", const.SCREEN_BRIGHTNESS, 0, 100,
-                        lambda v: _create_wave3_command(sn, lcdLight=int(v))),
+            LevelEntity(
+                client,
+                self,
+                "lcd_light",
+                const.SCREEN_BRIGHTNESS,
+                0,
+                100,
+                lambda v: _create_wave3_command(sn, lcdLight=int(v)),
+            ),
         ]
 
     def switches(self, client: EcoflowApiClient) -> list[SwitchEntity]:
         sn = self.device_info.sn
 
         drainage_switch = EnabledEntity(
-            client, self, "drainage_mode", const.AUTO_DRAINAGE,
-            lambda v: _create_wave3_command(sn, cfg_drainage_mode=1 if v else 0), enableValue=1, disableValue=0
+            client,
+            self,
+            "drainage_mode",
+            const.AUTO_DRAINAGE,
+            lambda v: _create_wave3_command(sn, cfg_drainage_mode=1 if v else 0),
+            enableValue=1,
+            disableValue=0,
         )
         drainage_switch._attr_icon = "mdi:water-pump"
 
         return [
-            BeeperEntity(client, self, "en_beep", const.BEEPER,
-                         lambda v: _create_wave3_command(sn, enBeep=0 if v else 1)),
-            drainage_switch
+            BeeperEntity(
+                client, self, "en_beep", const.BEEPER, lambda v: _create_wave3_command(sn, enBeep=0 if v else 1)
+            ),
+            drainage_switch,
         ]
 
     def selects(self, client: EcoflowApiClient) -> list[SelectEntity]:
         sn = self.device_info.sn
         return [
-            DictSelectEntity(client, self, "screen_off_time", const.SCREEN_TIMEOUT,
-                             {"Nie": 0, "10 s": 10, "30 s": 30, "1 min": 60, "5 min": 300, "10 min": 600},
-                             lambda v: _create_wave3_command(sn, screenOffTime=int(v))),
-            DictSelectEntity(client, self, "dev_standby_time", const.UNIT_TIMEOUT,
-                             {"Nie": 0, "30 min": 30, "1 hr": 60, "2 hr": 120, "4 hr": 240, "6 hr": 360, "12 hr": 720, "24 hr": 1440},
-                             lambda v: _create_wave3_command(sn, devStandbyTime=int(v))),
-            DictSelectEntity(client, self, "power_off_delay_set", const.AUTO_OFF_TIMEOUT,
-                             {"Nie": 0, "30 min": 30, "1 hr": 60, "2 hr": 120, "3 hr": 180, "4 hr": 240, "6 hr": 360, "8 hr": 480, "12 hr": 720, "24 hr": 1440},
-                             lambda v: _create_wave3_command(sn, cfg_power_off_delay_set=int(v))),
+            DictSelectEntity(
+                client,
+                self,
+                "screen_off_time",
+                const.SCREEN_TIMEOUT,
+                {"Nie": 0, "10 s": 10, "30 s": 30, "1 min": 60, "5 min": 300, "10 min": 600},
+                lambda v: _create_wave3_command(sn, screenOffTime=int(v)),
+            ),
+            DictSelectEntity(
+                client,
+                self,
+                "dev_standby_time",
+                const.UNIT_TIMEOUT,
+                {
+                    "Nie": 0,
+                    "30 min": 30,
+                    "1 hr": 60,
+                    "2 hr": 120,
+                    "4 hr": 240,
+                    "6 hr": 360,
+                    "12 hr": 720,
+                    "24 hr": 1440,
+                },
+                lambda v: _create_wave3_command(sn, devStandbyTime=int(v)),
+            ),
+            DictSelectEntity(
+                client,
+                self,
+                "power_off_delay_set",
+                const.AUTO_OFF_TIMEOUT,
+                {
+                    "Nie": 0,
+                    "30 min": 30,
+                    "1 hr": 60,
+                    "2 hr": 120,
+                    "3 hr": 180,
+                    "4 hr": 240,
+                    "6 hr": 360,
+                    "8 hr": 480,
+                    "12 hr": 720,
+                    "24 hr": 1440,
+                },
+                lambda v: _create_wave3_command(sn, cfg_power_off_delay_set=int(v)),
+            ),
         ]
 
     def climates(self, client: EcoflowApiClient) -> list[ClimateEntity]:
@@ -325,7 +379,7 @@ class Wave3ClimateEntity(ClimateEntity):
         2: HVACMode.HEAT,
         3: HVACMode.FAN_ONLY,
         4: HVACMode.DRY,
-        5: HVACMode.HEAT_COOL
+        5: HVACMode.HEAT_COOL,
     }
 
     def __init__(self, client: EcoflowApiClient, device: Wave3):
@@ -356,7 +410,11 @@ class Wave3ClimateEntity(ClimateEntity):
 
         mode = self.hvac_mode
         if mode in (HVACMode.COOL, HVACMode.HEAT):
-            features |= ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.PRESET_MODE
+            features |= (
+                ClimateEntityFeature.TARGET_TEMPERATURE
+                | ClimateEntityFeature.FAN_MODE
+                | ClimateEntityFeature.PRESET_MODE
+            )
         elif mode == HVACMode.FAN_ONLY:
             features |= ClimateEntityFeature.FAN_MODE
         elif mode == HVACMode.DRY:
@@ -419,17 +477,11 @@ class Wave3ClimateEntity(ClimateEntity):
         sn = self._device.device_info.sn
 
         if hvac_mode == HVACMode.OFF:
-            opt_state = {
-                "wave_operating_mode": 0,
-                "dev_sleep_state": 1
-            }
+            opt_state = {"wave_operating_mode": 0, "dev_sleep_state": 1}
             self._send(_create_wave3_command(sn, cfg_sys_pause=True), opt_state)
         else:
             mode_id = next((k for k, v in self._ECOFLOW_MODE_MAP.items() if v == hvac_mode), 1)
-            opt_state = {
-                "wave_operating_mode": mode_id,
-                "dev_sleep_state": 0
-            }
+            opt_state = {"wave_operating_mode": mode_id, "dev_sleep_state": 0}
             self._send(_create_wave3_command(sn, cfg_main_power=True, cfg_wave_operating_mode=mode_id), opt_state)
         self.schedule_update_ha_state()
 

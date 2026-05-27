@@ -1,25 +1,17 @@
-from typing import Any
-
-from custom_components.ecoflow_cloud.devices.data_holder import PreparedData
 import hashlib
 import hmac
 import logging
 import random
 import time
+from typing import Any
 
 import aiohttp
 
+from custom_components.ecoflow_cloud.devices.data_holder import PreparedData
 from ..devices import EcoflowDeviceInfo
 from . import EcoflowApiClient
 
 _LOGGER = logging.getLogger(__name__)
-
-# from FB
-# client_id limits for MQTT connections
-# If you are using MQTT to connect to the API be aware that only 10 unique client IDs are allowed per day.
-# As such, it is suggested that you choose a static client_id for your application or integration to use consistently.
-# If your code generates a unique client_id (as mine did) for each connection,
-# you can exceed this limit very quickly when testing or debugging code.
 
 
 class EcoflowPublicApiClient(EcoflowApiClient):
@@ -41,8 +33,7 @@ class EcoflowPublicApiClient(EcoflowApiClient):
     async def fetch_all_available_devices(self) -> list[EcoflowDeviceInfo]:
         _LOGGER.info("Requesting all devices")
         response = await self.call_api("/device/list")
-        _LOGGER.info(f"Received devices: \n {response}")
-        result = list()
+        result = []
         for device in response["data"]:
             _LOGGER.debug(str(device))
             sn = device["sn"]
@@ -64,6 +55,7 @@ class EcoflowPublicApiClient(EcoflowApiClient):
 
     def _device_registry(self) -> dict[str, Any]:
         from custom_components.ecoflow_cloud.devices.registry import device_by_product
+
         return device_by_product
 
     async def quota_all(self, device_sn: str | None):
@@ -134,24 +126,8 @@ class EcoflowPublicApiClient(EcoflowApiClient):
         return self.__encrypt_hmac_sha256(target_str, self.secret_key)
 
     def __sort_and_concat_params(self, params: dict[str, str]) -> str:
-        # Sort the dictionary items by key
         sorted_items = sorted(params.items(), key=lambda x: x[0])
-
-        # Create a list of "key=value" strings
-        param_strings = [f"{key}={value}" for key, value in sorted_items]
-
-        # Join the strings with '&'
-        return "&".join(param_strings)
+        return "&".join(f"{key}={value}" for key, value in sorted_items)
 
     def __encrypt_hmac_sha256(self, message: str, secret_key: str) -> str:
-        # Convert the message and secret key to bytes
-        message_bytes = message.encode("utf-8")
-        secret_bytes = secret_key.encode("utf-8")
-
-        # Create the HMAC
-        hmac_obj = hmac.new(secret_bytes, message_bytes, hashlib.sha256)
-
-        # Get the hexadecimal representation of the HMAC
-        hmac_digest = hmac_obj.hexdigest()
-
-        return hmac_digest
+        return hmac.new(secret_key.encode("utf-8"), message.encode("utf-8"), hashlib.sha256).hexdigest()

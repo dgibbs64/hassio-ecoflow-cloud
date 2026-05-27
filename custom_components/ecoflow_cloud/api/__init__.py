@@ -48,9 +48,7 @@ class EcoflowApiClient(ABC):
         pass
 
     @abstractmethod
-    def _create_device_info(
-        self, device_sn: str, device_name: str, device_type: str, status: int = -1
-    ) -> Any:
+    def _create_device_info(self, device_sn: str, device_name: str, device_type: str, status: int = -1) -> Any:
         pass
 
     @abstractmethod
@@ -64,7 +62,9 @@ class EcoflowApiClient(ABC):
             status = api_devices_info[sn].status
 
         if device_data.parent is not None:
-            info = self._create_device_info(device_data.parent.sn, device_data.name, device_data.parent.device_type, status)
+            info = self._create_device_info(
+                device_data.parent.sn, device_data.name, device_data.parent.device_type, status
+            )
         else:
             info = self._create_device_info(device_data.sn, device_data.name, device_data.device_type, status)
 

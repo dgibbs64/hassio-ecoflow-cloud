@@ -314,12 +314,8 @@ class GlacierClassic(BaseInternalDevice):
             ),
             GlacierClassicPrimaryTemperatureSensorEntity(client, self, "pd.tmpL", "Left Temperature", False),
             GlacierClassicPrimaryTemperatureSensorEntity(client, self, "pd.tmpR", "Right Temperature", False),
-            GlacierClassicPrimaryTemperatureSensorEntity(
-                client, self, "pd.tmpM", "Combined Temperature", False
-            ),
-            GlacierClassicTemperatureSensorEntity(
-                client, self, "pd.batTemp", "Battery Pack Temperature", False
-            ),
+            GlacierClassicPrimaryTemperatureSensorEntity(client, self, "pd.tmpM", "Combined Temperature", False),
+            GlacierClassicTemperatureSensorEntity(client, self, "pd.batTemp", "Battery Pack Temperature", False),
             VoltSensorEntity(client, self, "pd.inputVolts", "Input Voltage", False),
             VoltSensorEntity(client, self, "bms_bmsStatus.vol", const.BATTERY_VOLT, False)
             .attr("bms_bmsStatus.minCellVol", const.ATTR_MIN_CELL_VOLT, 0)
@@ -390,9 +386,7 @@ class GlacierClassic(BaseInternalDevice):
                 "Left Set Temperature",
                 -20,
                 20,
-                lambda value: _create_glacier_classic_proto_command(
-                    "setPointLeft", int(value), device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("setPointLeft", int(value), device.device_data.sn),
             ),
             GlacierClassicControlSetTempEntity(
                 client,
@@ -401,9 +395,7 @@ class GlacierClassic(BaseInternalDevice):
                 "Right Set Temperature",
                 -20,
                 20,
-                lambda value: _create_glacier_classic_proto_command(
-                    "setPointRight", int(value), device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("setPointRight", int(value), device.device_data.sn),
             ),
             MaxBatteryLevelEntity(
                 client,
@@ -412,9 +404,7 @@ class GlacierClassic(BaseInternalDevice):
                 const.MAX_CHARGE_LEVEL,
                 50,
                 100,
-                lambda value: _create_glacier_classic_proto_command(
-                    "cmsMaxChgSoc", int(value), device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("cmsMaxChgSoc", int(value), device.device_data.sn),
             ),
             MinBatteryLevelEntity(
                 client,
@@ -423,9 +413,7 @@ class GlacierClassic(BaseInternalDevice):
                 const.MIN_DISCHARGE_LEVEL,
                 0,
                 50,
-                lambda value: _create_glacier_classic_proto_command(
-                    "cmsMinDsgSoc", int(value), device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("cmsMinDsgSoc", int(value), device.device_data.sn),
             ),
         ]
 
@@ -438,45 +426,35 @@ class GlacierClassic(BaseInternalDevice):
                 self,
                 "pd.beepEn",
                 const.BEEPER,
-                lambda value: _create_glacier_classic_proto_command(
-                    "enBeep", value, device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("enBeep", value, device.device_data.sn),
             ),
             EnabledEntity(
                 client,
                 self,
                 "pd.coolMode",
                 "Eco Mode",
-                lambda value: _create_glacier_classic_proto_command(
-                    "coolingMode", value, device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("coolingMode", value, device.device_data.sn),
             ),
             EnabledEntity(
                 client,
                 self,
                 "pd.childLock",
                 "Child Lock",
-                lambda value: _create_glacier_classic_proto_command(
-                    "childLock", value, device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("childLock", value, device.device_data.sn),
             ),
             EnabledEntity(
                 client,
                 self,
                 "pd.simpleMode",
                 "Simple Mode",
-                lambda value: _create_glacier_classic_proto_command(
-                    "simpleMode", value, device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("simpleMode", value, device.device_data.sn),
             ).with_category(EntityCategory.CONFIG),
             EnabledEntity(
                 client,
                 self,
                 "pd.tempAlert",
                 "Temperature Alert",
-                lambda value: _create_glacier_classic_proto_command(
-                    "tempAlert", value, device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("tempAlert", value, device.device_data.sn),
             ).with_category(EntityCategory.CONFIG),
         ]
 
@@ -490,9 +468,7 @@ class GlacierClassic(BaseInternalDevice):
                 "pd.powerPbLevel",
                 "Battery Protection",
                 BATTERY_PROTECTION_OPTIONS,
-                lambda value: _create_glacier_classic_proto_command(
-                    "batProtect", value, device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("batProtect", value, device.device_data.sn),
             ),
             DictSelectEntity(
                 client,
@@ -500,9 +476,7 @@ class GlacierClassic(BaseInternalDevice):
                 "pd.devStandbyTime",
                 "Device Standby Time",
                 DEVICE_STANDBY_OPTIONS,
-                lambda value: _create_glacier_classic_proto_command(
-                    "devStandbyTime", value, device.device_data.sn
-                ),
+                lambda value: _create_glacier_classic_proto_command("devStandbyTime", value, device.device_data.sn),
             ),
         ]
 

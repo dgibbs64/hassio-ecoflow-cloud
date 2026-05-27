@@ -413,9 +413,11 @@ class InAmpSensorEntity(AmpSensorEntity):
     _attr_icon = "mdi:transmission-tower-import"
     _attr_suggested_display_precision = 2
 
+
 class InRawAmpSolarSensorEntity(AmpSensorEntity):
     _attr_icon = "mdi:solar-power"
     _attr_suggested_display_precision = 2
+
 
 class OutMilliampSensorEntity(MilliampSensorEntity):
     _attr_icon = "mdi:transmission-tower-export"
@@ -532,9 +534,7 @@ class StatusSensorEntity(SensorEntity, EcoFlowAbstractDataEntity):  # type: igno
         # Scheduled periodic refresh regardless of status
         if self._scheduled_refresh_sec is not None:
             if (dt.utcnow() - self._last_scheduled).total_seconds() > self._scheduled_refresh_sec:
-                self.hass.async_create_background_task(
-                    self._client.quota_all(self._device.device_info.sn), "get quota"
-                )
+                self.hass.async_create_background_task(self._client.quota_all(self._device.device_info.sn), "get quota")
                 self._last_scheduled = dt.utcnow()
                 self._poll_count += 1
                 self._attrs[ATTR_QUOTA_REQUESTS] = self._poll_count
@@ -751,4 +751,4 @@ class WattsDifferenceSensorEntity(SensorEntity, EcoFlowAbstractDataEntity):
         if input_val is None or output_val is None or input_val is STATE_UNKNOWN or output_val is STATE_UNKNOWN:
             self._difference = None
             return
-        self._difference = float(output_val) - float(input_val)        
+        self._difference = float(output_val) - float(input_val)

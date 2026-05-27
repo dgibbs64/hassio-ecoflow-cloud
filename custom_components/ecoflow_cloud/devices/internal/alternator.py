@@ -39,9 +39,9 @@ _LOGGER = logging.getLogger(__name__)
 
 # cmd_func/cmd_id pair that identifies each alternator packet type
 _CMD_FUNC = 254
-_CMD_ID_HEARTBEAT = 21     # alternatorHeartbeat — device → app (sensor data)
+_CMD_ID_HEARTBEAT = 21  # alternatorHeartbeat — device → app (sensor data)
 _CMD_ID_CONFIG_WRITE = 17  # alternatorSet        — app → device (commands)
-_CMD_ID_PUSH = 37          # periodic device push / command-applied confirmation
+_CMD_ID_PUSH = 37  # periodic device push / command-applied confirmation
 
 # Prefix used for all sensor keys derived from the heartbeat message
 _HB_KEY = f"{_CMD_FUNC}_{_CMD_ID_HEARTBEAT}"
@@ -120,6 +120,7 @@ class AlternatorCommandMessage(PrivateAPIMessageProtocol):
 # Custom number entities for alternator-specific scaling
 # ---------------------------------------------------------------------------
 
+
 class _StartVoltageEntity(BaseNumberEntity):
     """Number entity for car battery start voltage.
 
@@ -155,12 +156,13 @@ class _CurrentLimitEntity(BaseNumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         if self._command:
-            self.send_set_message(float(value), self.command_dict(float(value))) # type: ignore[arg-type]
+            self.send_set_message(float(value), self.command_dict(float(value)))  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
 # Device class
 # ---------------------------------------------------------------------------
+
 
 class Alternator(BaseInternalDevice):
     """EcoFlow Alternator 800W smart alternator charger."""
@@ -187,11 +189,31 @@ class Alternator(BaseInternalDevice):
             # Per-mode current limits (read-only view — controlled via number entities)
             # car_batt_chg = charging the car battery = Reverse Charge mode (station→car)
             # dev_batt_chg = charging the device/station battery = Charge mode (alternator→station)
-            AmpSensorEntity(client, self, f"{_HB_KEY}.spChargerDevBattChgAmpLimit", const.ALTERNATOR_CHARGE_CURRENT_LIMIT, enabled=False),
-            AmpSensorEntity(client, self, f"{_HB_KEY}.spChargerCarBattChgAmpLimit", const.ALTERNATOR_REVERSE_CHARGE_CURRENT_LIMIT, enabled=False),
+            AmpSensorEntity(
+                client,
+                self,
+                f"{_HB_KEY}.spChargerDevBattChgAmpLimit",
+                const.ALTERNATOR_CHARGE_CURRENT_LIMIT,
+                enabled=False,
+            ),
+            AmpSensorEntity(
+                client,
+                self,
+                f"{_HB_KEY}.spChargerCarBattChgAmpLimit",
+                const.ALTERNATOR_REVERSE_CHARGE_CURRENT_LIMIT,
+                enabled=False,
+            ),
             # Rated max current (device capability, read-only)
-            AmpSensorEntity(client, self, f"{_HB_KEY}.spChargerDevBattChgAmpMax", const.ALTERNATOR_CHARGE_CURRENT_MAX, enabled=False),
-            AmpSensorEntity(client, self, f"{_HB_KEY}.spChargerCarBattChgAmpMax", const.ALTERNATOR_REVERSE_CHARGE_CURRENT_MAX, enabled=False),
+            AmpSensorEntity(
+                client, self, f"{_HB_KEY}.spChargerDevBattChgAmpMax", const.ALTERNATOR_CHARGE_CURRENT_MAX, enabled=False
+            ),
+            AmpSensorEntity(
+                client,
+                self,
+                f"{_HB_KEY}.spChargerCarBattChgAmpMax",
+                const.ALTERNATOR_REVERSE_CHARGE_CURRENT_MAX,
+                enabled=False,
+            ),
             self._status_sensor(client),
         ]
 
@@ -319,9 +341,7 @@ class Alternator(BaseInternalDevice):
                 try:
                     command = Command(command_desc)
                 except ValueError:
-                    _LOGGER.info(
-                        "Unsupported alternator packet cmd_func=%u cmd_id=%u", cmd_func, cmd_id
-                    )
+                    _LOGGER.info("Unsupported alternator packet cmd_func=%u cmd_id=%u", cmd_func, cmd_id)
                     continue
 
                 params = cast(JSONDict, res.setdefault("params", {}))

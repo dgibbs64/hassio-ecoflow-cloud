@@ -81,6 +81,7 @@ class EcoflowPrivateApiClient(EcoflowApiClient):
 
     def _device_registry(self) -> dict[str, Any]:
         from ..devices.registry import devices
+
         return devices
 
     def _create_device_info(

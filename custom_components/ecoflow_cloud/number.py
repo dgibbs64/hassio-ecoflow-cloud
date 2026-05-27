@@ -157,6 +157,7 @@ class MinGenStartLevelEntity(LevelEntity):
 class MaxGenStopLevelEntity(LevelEntity):
     _attr_icon = "mdi:engine-off"
 
+
 class MaxWattsEntity(LevelEntity):
     _attr_icon = "mdi:power-plug-off"
 

@@ -44,9 +44,7 @@ class DeviceStatusCoordinator(DataUpdateCoordinator[None]):
 
     def _actualize_interval(self) -> None:
         interval = min(
-            (d.device_data.options.assume_offline_sec
-             for c in self._clients.values()
-             for d in c.devices.values()),
+            (d.device_data.options.assume_offline_sec for c in self._clients.values() for d in c.devices.values()),
             default=DEFAULT_STATUS_POLL_INTERVAL_SEC,
         )
         self.update_interval = datetime.timedelta(seconds=interval)
@@ -80,9 +78,7 @@ class DeviceStatusCoordinator(DataUpdateCoordinator[None]):
 
         # Only poll if at least one device needs status clarification
         needs_poll = any(
-            device.status_tracker.wants_status_poll
-            for devices in all_devices.values()
-            for device in devices
+            device.status_tracker.wants_status_poll for devices in all_devices.values() for device in devices
         )
         if not needs_poll:
             _LOGGER.debug("No devices need status poll — skipping")
