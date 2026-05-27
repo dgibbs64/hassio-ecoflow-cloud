@@ -23,6 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 @dataclasses.dataclass
 class EcoflowBroadcastDataHolder:
     data_holder: EcoflowDataHolder
+    received_time: datetime.datetime
     changed: bool
 
 
@@ -33,7 +34,7 @@ class DeviceDataCoordinator(DataUpdateCoordinator[EcoflowBroadcastDataHolder]):
             hass,
             _LOGGER,
             name="Ecoflow update coordinator",
-            always_update=True,
+            always_update=False,
             update_interval=datetime.timedelta(seconds=max(refresh_period, 5)),
         )
         self.holder = holder
@@ -43,4 +44,4 @@ class DeviceDataCoordinator(DataUpdateCoordinator[EcoflowBroadcastDataHolder]):
         received_time = self.holder.last_received_time()
         changed = self.__last_broadcast < received_time
         self.__last_broadcast = received_time
-        return EcoflowBroadcastDataHolder(self.holder, changed)
+        return EcoflowBroadcastDataHolder(self.holder, received_time, changed)

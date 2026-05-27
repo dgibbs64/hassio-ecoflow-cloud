@@ -244,6 +244,10 @@ class StreamAC(BaseDevice):
         if self.history_coordinator:
             await self.history_coordinator.async_refresh()
 
+    async def async_cleanup(self):
+        if self.history_coordinator:
+            await self.history_coordinator.async_shutdown()
+
     def flat_json(self) -> bool:
         return False
 

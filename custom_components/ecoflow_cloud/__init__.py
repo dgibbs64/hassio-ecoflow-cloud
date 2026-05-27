@@ -292,6 +292,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
             hass.data[ECOFLOW_DOMAIN].pop(_STATUS_COORDINATOR_KEY)
 
     client = hass.data[ECOFLOW_DOMAIN].pop(entry.entry_id)
+
+    # Cancel any background tasks (e.g. history coordinators) before stopping.
+    devices = getattr(client, "devices", None)
+    if isinstance(devices, dict):
+        cleanups = [cleanup() for dev in devices.values() if callable(cleanup := getattr(dev, "async_cleanup", None))]
+        if cleanups:
+            import asyncio
+            await asyncio.gather(*cleanups, return_exceptions=True)
+
     client.stop()
     return True
 
