@@ -3,15 +3,24 @@
 EcoFlow Cloud Auto-Configuration Script
 
 This script pre-populates the Home Assistant config entries for the EcoFlow Cloud
-integration, allowing automatic setup with Public API credentials on container restart.
+integration, allowing automatic setup on container restart.
 
-Usage:
-    Set the following environment variables before running:
+Supports two authentication modes:
+
+  Public API (access key + secret key):
     - ECOFLOW_ACCESS_KEY: Your EcoFlow Public API access key
     - ECOFLOW_SECRET_KEY: Your EcoFlow Public API secret key
     - ECOFLOW_API_HOST: API host (default: api-e.ecoflow.com)
     - ECOFLOW_DEVICES: JSON array of devices, e.g.:
-      [{"sn": "DEVICE_SN", "name": "My Device", "type": "Smart Home Panel"}]
+      [{"sn": "DEVICE_SN", "name": "My Device", "type": "Stream AC"}]
+
+  Private API (email + password):
+    - ECOFLOW_USERNAME: Your EcoFlow account email
+    - ECOFLOW_PASSWORD: Your EcoFlow account password
+    - ECOFLOW_API_HOST: API host (default: api.ecoflow.com for private API)
+    - ECOFLOW_DEVICES: JSON array of devices (same format as above)
+      Common private API device types: STREAM_AC, STREAM_PRO, STREAM_ULTRA,
+      DELTA_PRO, DELTA_2, RIVER_2, etc.
 
     Then run: python3 setup_ecoflow_config.py
 """
@@ -23,9 +32,10 @@ from pathlib import Path
 
 
 # Configuration defaults
-DEFAULT_API_HOST = "api-e.ecoflow.com"
+DEFAULT_PUBLIC_API_HOST = "api-e.ecoflow.com"
+DEFAULT_PRIVATE_API_HOST = "api.ecoflow.com"
 DEFAULT_GROUP = "Home"
-CONFIG_VERSION = 10
+CONFIG_VERSION = 11
 
 # Default device options
 DEFAULT_OPTIONS = {
@@ -61,27 +71,16 @@ def parse_devices(devices_json: str) -> list[dict]:
         exit(1)
 
 
-def create_config_entry(
-    access_key: str,
-    secret_key: str,
-    api_host: str,
-    devices: list[dict],
-    group: str = DEFAULT_GROUP,
-) -> dict:
-    """Create a config entry for the EcoFlow Cloud integration."""
-    entry_id = str(uuid.uuid4()).replace("-", "")
-
-    # Build device list for data
+def _build_devices_payload(devices: list[dict]) -> tuple[dict, dict]:
+    """Build device_list_data and device_list_options dicts from device list."""
     device_list_data = {}
     device_list_options = {}
-
     for device in devices:
         sn = device["sn"]
         device_list_data[sn] = {
             "device_name": device["name"],
             "device_type": device["type"],
         }
-        # Use custom options if provided, otherwise use defaults
         device_list_options[sn] = {
             "refresh_period_sec": device.get("refresh_period_sec", DEFAULT_OPTIONS["refresh_period_sec"]),
             "power_step": device.get("power_step", DEFAULT_OPTIONS["power_step"]),
@@ -89,7 +88,19 @@ def create_config_entry(
             "verbose_status_mode": device.get("verbose_status_mode", DEFAULT_OPTIONS["verbose_status_mode"]),
             "assume_offline_sec": device.get("assume_offline_sec", DEFAULT_OPTIONS["assume_offline_sec"]),
         }
+    return device_list_data, device_list_options
 
+
+def create_public_api_config_entry(
+    access_key: str,
+    secret_key: str,
+    api_host: str,
+    devices: list[dict],
+    group: str = DEFAULT_GROUP,
+) -> dict:
+    """Create a config entry using the EcoFlow Public API (access key + secret key)."""
+    entry_id = str(uuid.uuid4()).replace("-", "")
+    device_list_data, device_list_options = _build_devices_payload(devices)
     return {
         "entry_id": entry_id,
         "version": CONFIG_VERSION,
@@ -101,6 +112,40 @@ def create_config_entry(
             "api_host": api_host,
             "access_key": access_key,
             "secret_key": secret_key,
+            "devices_list": device_list_data,
+        },
+        "options": {
+            "devices_list": device_list_options,
+        },
+        "pref_disable_new_entities": False,
+        "pref_disable_polling": False,
+        "source": "user",
+        "unique_id": f"group-{group}",
+        "disabled_by": None,
+    }
+
+
+def create_private_api_config_entry(
+    username: str,
+    password: str,
+    api_host: str,
+    devices: list[dict],
+    group: str = DEFAULT_GROUP,
+) -> dict:
+    """Create a config entry using the EcoFlow Private API (email + password)."""
+    entry_id = str(uuid.uuid4()).replace("-", "")
+    device_list_data, device_list_options = _build_devices_payload(devices)
+    return {
+        "entry_id": entry_id,
+        "version": CONFIG_VERSION,
+        "minor_version": 1,
+        "domain": "ecoflow_cloud",
+        "title": group,
+        "data": {
+            "group": group,
+            "api_host": api_host,
+            "username": username,
+            "password": password,
             "devices_list": device_list_data,
         },
         "options": {
@@ -134,39 +179,53 @@ def save_config(config_path: Path, config: dict) -> None:
 
 
 def main():
-    # Get configuration from environment
-    access_key = get_env_or_exit("ECOFLOW_ACCESS_KEY")
-    secret_key = get_env_or_exit("ECOFLOW_SECRET_KEY")
-    devices_json = get_env_or_exit("ECOFLOW_DEVICES")
-
-    api_host = os.environ.get("ECOFLOW_API_HOST", DEFAULT_API_HOST)
     group = os.environ.get("ECOFLOW_GROUP", DEFAULT_GROUP)
     config_dir = os.environ.get("HA_CONFIG_DIR", "/config")
+    devices_json = os.environ.get("ECOFLOW_DEVICES")
+
+    # Detect auth mode: private API takes priority if username/password present
+    username = os.environ.get("ECOFLOW_USERNAME")
+    password = os.environ.get("ECOFLOW_PASSWORD")
+    access_key = os.environ.get("ECOFLOW_ACCESS_KEY")
+    secret_key = os.environ.get("ECOFLOW_SECRET_KEY")
+
+    if not (username and password) and not (access_key and secret_key):
+        print("No credentials configured — skipping auto-configuration.")
+        print("Configure the integration manually via the Home Assistant UI.")
+        return
+
+    if not devices_json:
+        print("ECOFLOW_DEVICES not set — skipping auto-configuration.")
+        print("Set ECOFLOW_DEVICES in .devcontainer/.env with your device SN, then restart.")
+        return
 
     devices = parse_devices(devices_json)
-    print(f"Configuring EcoFlow Cloud integration with {len(devices)} device(s)...")
+
+    if username and password:
+        api_host = os.environ.get("ECOFLOW_API_HOST", DEFAULT_PRIVATE_API_HOST)
+        print(f"Using Private API (email/password) for {len(devices)} device(s)...")
+        new_entry = create_private_api_config_entry(username, password, api_host, devices, group)
+        auth_desc = f"username={username}"
+    else:
+        api_host = os.environ.get("ECOFLOW_API_HOST", DEFAULT_PUBLIC_API_HOST)
+        print(f"Using Public API (access/secret key) for {len(devices)} device(s)...")
+        new_entry = create_public_api_config_entry(access_key, secret_key, api_host, devices, group)
+        auth_desc = f"access_key={access_key[:8]}..."
 
     # Path to Home Assistant config entries
     config_path = Path(config_dir) / ".storage" / "core.config_entries"
 
-    # Load existing config
     config = load_existing_config(config_path)
-
-    # Remove any existing ecoflow_cloud entries
     config["data"]["entries"] = [
         entry for entry in config["data"]["entries"]
         if entry.get("domain") != "ecoflow_cloud"
     ]
-
-    # Add our new entry
-    new_entry = create_config_entry(access_key, secret_key, api_host, devices, group)
     config["data"]["entries"].append(new_entry)
-
-    # Save the config
     save_config(config_path, config)
 
     print("EcoFlow Cloud integration configured successfully!")
     print(f"  - API Host: {api_host}")
+    print(f"  - Auth: {auth_desc}")
     print(f"  - Group: {group}")
     print(f"  - Devices: {', '.join(d['name'] + ' (' + d['sn'] + ')' for d in devices)}")
 
