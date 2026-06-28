@@ -11,9 +11,9 @@ from custom_components.ecoflow_cloud.binary_sensor import MiscBinarySensorEntity
 from custom_components.ecoflow_cloud.devices import BaseDevice, const
 from custom_components.ecoflow_cloud.devices.public.data_bridge import to_plain
 from custom_components.ecoflow_cloud.sensor import (
+    AmpSensorEntity,
     CelsiusSensorEntity,
     FrequencySensorEntity,
-    InAmpSensorEntity,
     MiscSensorEntity,
     StatusSensorEntity,
     VoltSensorEntity,
@@ -46,9 +46,12 @@ class StreamMicroinveter(BaseDevice):
             VoltSensorEntity(client, self, "gridConnectionVol", const.STREAM_POWER_VOL, False),
             VoltSensorEntity(client, self, "plugInInfoPvVol", const.STREAM_IN_VOL_PV_1, False, True),
             VoltSensorEntity(client, self, "plugInInfoPv2Vol", const.STREAM_IN_VOL_PV_2, False, True),
-            InAmpSensorEntity(client, self, "gridConnectionAmp", const.STREAM_POWER_AMP, False),
-            InAmpSensorEntity(client, self, "plugInInfoPvAmp", const.STREAM_IN_AMPS_PV_1, False, True),
-            InAmpSensorEntity(client, self, "plugInInfoPv2Amp", const.STREAM_IN_AMPS_PV_2, False, True),
+            # Plain AmpSensorEntity (neutral current icon) to match stream_ac.py -
+            # InAmpSensorEntity would wrongly show a grid-import tower icon on a
+            # solar PV current / the inverter's grid-export current.
+            AmpSensorEntity(client, self, "gridConnectionAmp", const.STREAM_POWER_AMP, False),
+            AmpSensorEntity(client, self, "plugInInfoPvAmp", const.STREAM_IN_AMPS_PV_1, False, True),
+            AmpSensorEntity(client, self, "plugInInfoPv2Amp", const.STREAM_IN_AMPS_PV_2, False, True),
             CelsiusSensorEntity(client, self, "invNtcTemp3", "Inverter NTC Temperature"),
             FrequencySensorEntity(client, self, "gridConnectionFreq", "Grid Frequency"),
             # --- Additional diagnostics (disabled by default) ---
