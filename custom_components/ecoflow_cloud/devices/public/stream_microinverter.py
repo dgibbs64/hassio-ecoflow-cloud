@@ -56,14 +56,14 @@ class StreamMicroinveter(BaseDevice):
             FrequencySensorEntity(client, self, "gridConnectionFreq", "Grid Frequency"),
             # --- Additional diagnostics (disabled by default) ---
             # Configured export/feed-in power cap (e.g. 800 W in EU).
-            WattsSensorEntity(client, self, "feedGridModePowLimit", "Feed-in Power Limit", False),
+            WattsSensorEntity(client, self, "feedGridModePowLimit", "Feed-in Power Limit", False).with_icon("mdi:transmission-tower-export"),
             # Live inverter target power setpoint.
-            WattsSensorEntity(client, self, "invTargetPwr", "Inverter Target Power", False),
+            WattsSensorEntity(client, self, "invTargetPwr", "Inverter Target Power", False).with_icon("mdi:target"),
             # Grid quality / inverter health.
-            MiscSensorEntity(client, self, "gridConnectionPowerFactor", "Grid Connection Power Factor", False),
-            MiscSensorEntity(client, self, "gridConnectionReactivePower", "Grid Connection Reactive Power", False),
-            MiscSensorEntity(client, self, "gridCodeSelection", "Grid Code", False),
-            MiscSensorEntity(client, self, "moduleWifiRssi", "WiFi Signal Strength", False),
+            MiscSensorEntity(client, self, "gridConnectionPowerFactor", "Grid Connection Power Factor", False).with_icon("mdi:angle-acute"),
+            MiscSensorEntity(client, self, "gridConnectionReactivePower", "Grid Connection Reactive Power", False).with_icon("mdi:flash-outline"),
+            MiscSensorEntity(client, self, "gridCodeSelection", "Grid Code", False).with_icon("mdi:transmission-tower"),
+            MiscSensorEntity(client, self, "moduleWifiRssi", "WiFi Signal Strength", False).with_icon("mdi:wifi"),
             StatusSensorEntity(client, self),
         ]
 
