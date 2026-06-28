@@ -30,14 +30,19 @@ class StreamMicroinveter(BaseDevice):
             WattsSensorEntity(client, self, "gridConnectionPower", const.STREAM_POWER_AC),
             # Per-PV mapping is firmware-dependent. See stream_ac.py comment
             # and issues #582/#584. Both variants are registered with
-            # auto_enable=True so the integration stays firmware-agnostic.
+            # auto_enable=True so the integration stays firmware-agnostic, and
+            # are given distinct "(Calculated)"/"(Reported)" titles so users can
+            # tell them apart when a device reports both.
             #
-            # New-firmware path (computed amp x vol via StreamPvWattsSensorEntity)
-            StreamPvWattsSensorEntity(client, self, "plugInInfoPvAmp", const.STREAM_POWER_PV_1, False, True),
-            StreamPvWattsSensorEntity(client, self, "plugInInfoPv2Amp", const.STREAM_POWER_PV_2, False, True),
-            # Legacy-firmware path (powGetPv* keys)
-            WattsSensorEntity(client, self, "powGetPv", const.STREAM_POWER_PV_1, False, True),
-            WattsSensorEntity(client, self, "powGetPv2", const.STREAM_POWER_PV_2, False, True),
+            # "(Calculated)": power derived as plugInInfoPv*Amp x plugInInfoPv*Vol.
+            # The amp/volt samples are not synchronised, so this can over-/under-
+            # estimate (observed ~15% high vs AC output on some firmware).
+            StreamPvWattsSensorEntity(client, self, "plugInInfoPvAmp", "Power PV 1 (Calculated)", False, True),
+            StreamPvWattsSensorEntity(client, self, "plugInInfoPv2Amp", "Power PV 2 (Calculated)", False, True),
+            # "(Reported)": the inverter's own powGetPv* PV-power figure, which
+            # tracks AC output closely and is generally the more accurate source.
+            WattsSensorEntity(client, self, "powGetPv", "Power PV 1 (Reported)", False, True),
+            WattsSensorEntity(client, self, "powGetPv2", "Power PV 2 (Reported)", False, True),
             VoltSensorEntity(client, self, "gridConnectionVol", const.STREAM_POWER_VOL, False),
             VoltSensorEntity(client, self, "plugInInfoPvVol", const.STREAM_IN_VOL_PV_1, False, True),
             VoltSensorEntity(client, self, "plugInInfoPv2Vol", const.STREAM_IN_VOL_PV_2, False, True),
