@@ -1,17 +1,20 @@
 from typing import Any
 
+from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.components.switch import SwitchEntity
 
 from custom_components.ecoflow_cloud.api import EcoflowApiClient
+from custom_components.ecoflow_cloud.binary_sensor import MiscBinarySensorEntity
 from custom_components.ecoflow_cloud.devices import BaseDevice, const
 from custom_components.ecoflow_cloud.devices.public.data_bridge import to_plain
 from custom_components.ecoflow_cloud.sensor import (
     CelsiusSensorEntity,
     FrequencySensorEntity,
     InAmpSensorEntity,
+    MiscSensorEntity,
     StatusSensorEntity,
     VoltSensorEntity,
     WattsSensorEntity,
@@ -43,7 +46,33 @@ class StreamMicroinveter(BaseDevice):
             InAmpSensorEntity(client, self, "plugInInfoPv2Amp", const.STREAM_IN_AMPS_PV_2, False, True),
             CelsiusSensorEntity(client, self, "invNtcTemp3", "Inverter NTC Temperature"),
             FrequencySensorEntity(client, self, "gridConnectionFreq", "Grid Frequency"),
+            # --- Additional diagnostics (disabled by default) ---
+            # Configured export/feed-in power cap (e.g. 800 W in EU).
+            WattsSensorEntity(client, self, "feedGridModePowLimit", "Feed-in Power Limit", False),
+            # Live inverter target power setpoint.
+            WattsSensorEntity(client, self, "invTargetPwr", "Inverter Target Power", False),
+            # Grid quality / inverter health.
+            MiscSensorEntity(client, self, "gridConnectionPowerFactor", "Grid Connection Power Factor", False),
+            MiscSensorEntity(client, self, "gridConnectionReactivePower", "Grid Connection Reactive Power", False),
+            MiscSensorEntity(client, self, "gridCodeSelection", "Grid Code", False),
+            MiscSensorEntity(client, self, "moduleWifiRssi", "WiFi Signal Strength", False),
             StatusSensorEntity(client, self),
+        ]
+
+    def binary_sensors(self, client: EcoflowApiClient) -> list[BinarySensorEntity]:
+        # Curtailment flags explain why the inverter is throttling output.
+        # All disabled by default; enable per need. PV3/PV4 are present in the
+        # protocol struct but unused on 2-string microinverters.
+        return [
+            MiscBinarySensorEntity(client, self, "gridCurtailmentSignal.isGridVol", "Curtailment - Grid Voltage", False, diagnostic=True),
+            MiscBinarySensorEntity(client, self, "gridCurtailmentSignal.isGridFreq", "Curtailment - Grid Frequency", False, diagnostic=True),
+            MiscBinarySensorEntity(client, self, "gridCurtailmentSignal.isTemp", "Curtailment - Temperature", False, diagnostic=True),
+            MiscBinarySensorEntity(client, self, "gridCurtailmentSignal.isPv1Oc", "Curtailment - PV1 Over-current", False, diagnostic=True),
+            MiscBinarySensorEntity(client, self, "gridCurtailmentSignal.isPv1Cl", "Curtailment - PV1 Current Limit", False, diagnostic=True),
+            MiscBinarySensorEntity(client, self, "gridCurtailmentSignal.isPv2Oc", "Curtailment - PV2 Over-current", False, diagnostic=True),
+            MiscBinarySensorEntity(client, self, "gridCurtailmentSignal.isPv2Cl", "Curtailment - PV2 Current Limit", False, diagnostic=True),
+            MiscBinarySensorEntity(client, self, "factoryModeEnable", "Factory Mode", False, diagnostic=True),
+            MiscBinarySensorEntity(client, self, "debugModeEnable", "Debug Mode", False, diagnostic=True),
         ]
 
     def numbers(self, client: EcoflowApiClient) -> list[NumberEntity]:
