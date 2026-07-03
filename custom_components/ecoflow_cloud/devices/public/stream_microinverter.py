@@ -15,6 +15,7 @@ from custom_components.ecoflow_cloud.sensor import (
     CelsiusSensorEntity,
     FrequencySensorEntity,
     MiscSensorEntity,
+    MqttKeepaliveStatusSensorEntity,
     StatusSensorEntity,
     VoltSensorEntity,
     WattsSensorEntity,
@@ -98,4 +99,8 @@ class StreamMicroinveter(BaseDevice):
         return res
 
     def _status_sensor(self, client: EcoflowApiClient) -> StatusSensorEntity:
-        return StatusSensorEntity(client, self)
+        # The cloud throttles the microinverter to a ~15-min heartbeat once the
+        # streaming window after (re)connect expires, and /device/quota/all
+        # returns no params for it, so quota-based fallbacks are useless here.
+        # Keep the real-time stream alive at the MQTT level instead.
+        return MqttKeepaliveStatusSensorEntity(client, self)

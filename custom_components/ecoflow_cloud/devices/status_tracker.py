@@ -71,6 +71,15 @@ class StatusTracker:
         return OnlineStatus.OFFLINE
 
     @property
+    def explicit_offline(self) -> bool:
+        """True when the cloud has explicitly reported the device offline.
+
+        Distinguishes a device that is genuinely powered down (e.g. a PV
+        microinverter at night) from one that is merely silent on MQTT.
+        """
+        return self._explicit_offline
+
+    @property
     def is_online(self) -> bool:
         return self.status == OnlineStatus.ONLINE
 
