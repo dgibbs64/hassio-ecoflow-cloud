@@ -65,7 +65,7 @@ class StreamMicroinveter(BaseDevice):
             MiscSensorEntity(client, self, "gridConnectionReactivePower", "Grid Connection Reactive Power", False).with_icon("mdi:flash-outline"),
             MiscSensorEntity(client, self, "gridCodeSelection", "Grid Code", False).with_icon("mdi:transmission-tower"),
             MiscSensorEntity(client, self, "moduleWifiRssi", "WiFi Signal Strength", False).with_icon("mdi:wifi"),
-            StatusSensorEntity(client, self),
+            self._status_sensor(client),
         ]
 
     def binary_sensors(self, client: EcoflowApiClient) -> list[BinarySensorEntity]:
