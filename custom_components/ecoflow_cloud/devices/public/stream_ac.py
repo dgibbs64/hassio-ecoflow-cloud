@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone as _timezone
 from typing import Any, Final
 
@@ -392,9 +393,15 @@ class StreamAC(BaseDevice):
     """StreamAC device with real-time MQTT sensors and periodic historical data."""
 
     history_coordinator: "StreamACHistoryUpdateCoordinator | None" = None
+    _history_unsub: "Callable[[], None] | None" = None
 
     async def async_cleanup(self) -> None:
         """Cancel background tasks on device unload."""
+        if self._history_unsub is not None:
+            # Drop our listener so the orphaned coordinator stops scheduling
+            # periodic refreshes after the entry is unloaded/reloaded.
+            self._history_unsub()
+            self._history_unsub = None
         tasks = getattr(self, "_background_tasks", None)
         if tasks:
             for task in list(tasks):
@@ -412,6 +419,15 @@ class StreamAC(BaseDevice):
                 self.history_coordinator = StreamACHistoryUpdateCoordinator(
                     hass, client, self, DEFAULT_STREAM_AC_HISTORY_PERIOD_SEC
                 )
+            if self._history_unsub is None:
+                # A DataUpdateCoordinator only schedules its periodic refresh
+                # while it has at least one listener. The history entities
+                # receive data through the device broadcast coordinator (the
+                # fetch writes straight into data.params), so without this
+                # persistent listener the initial refresh below would be the
+                # ONLY fetch until the next config-entry reload — and a failed
+                # initial fetch would leave the sensors unknown indefinitely.
+                self._history_unsub = self.history_coordinator.async_add_listener(lambda: None)
 
             def _on_task_done(t: asyncio.Task) -> None:
                 try:
