@@ -36,6 +36,8 @@ ATTR_MQTT_CONNECTED = "mqtt_connected"
 ATTR_STATUS_RECONNECTS = "reconnects"
 ATTR_STATUS_PHASE = "status_phase"
 ATTR_QUOTA_REQUESTS = "quota_requests"
+ATTR_KEEPALIVE_RESUBSCRIBES = "keepalive_resubscribes"
+ATTR_KEEPALIVE_RECONNECTS = "keepalive_reconnects"
 
 CONF_AUTH_TYPE: Final = "auth_type"
 

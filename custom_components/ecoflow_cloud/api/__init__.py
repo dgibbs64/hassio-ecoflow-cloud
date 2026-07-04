@@ -152,6 +152,14 @@ class EcoflowApiClient(ABC):
     def mqtt_reconnect_count(self) -> int:
         return self._mqtt_reconnect_count
 
+    def refresh_device_subscription(self, device_sn: str) -> bool:
+        """Re-subscribe to one device's MQTT topics to nudge the cloud into
+        resuming real-time pushes for that device. Returns True on success."""
+        device = self.devices.get(device_sn)
+        if device is None:
+            return False
+        return self.mqtt_client.resubscribe(device.device_info.topics())
+
     def stop(self):
         _LOGGER.debug("Stopping MQTT client for %s", self.mqtt_info.client_id)
         assert self.mqtt_client is not None

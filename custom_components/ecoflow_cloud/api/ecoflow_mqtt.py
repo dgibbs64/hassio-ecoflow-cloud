@@ -50,6 +50,26 @@ class EcoflowMQTTClient:
     def is_connected(self):
         return self.__client.is_connected()
 
+    def resubscribe(self, topics: list[str]) -> bool:
+        """Re-issue SUBSCRIBE for the given topics on the live connection.
+
+        EcoFlow's broker appears to treat a fresh subscription as client
+        activity and re-opens the real-time data stream for devices it has
+        throttled back to slow heartbeat updates (see Stream Microinverter).
+        Re-subscribing to an already-subscribed topic is legal MQTT and does
+        not interrupt other traffic on the connection.
+        """
+        if not self.__client.is_connected():
+            return False
+        try:
+            target_topics = [(topic, 1) for topic in topics]
+            self.__client.subscribe(target_topics)
+            _LOGGER.debug(f"Re-subscribed to MQTT topics {target_topics}")
+            return True
+        except Exception as e:
+            _LOGGER.error(e)
+            return False
+
     def reconnect(self) -> bool:
         try:
             _LOGGER.info(f"Re-connecting to MQTT Broker {self.__mqtt_info.url}:{self.__mqtt_info.port}")

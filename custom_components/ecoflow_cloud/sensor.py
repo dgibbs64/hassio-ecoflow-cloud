@@ -36,6 +36,8 @@ from homeassistant.util import dt  # pyright: ignore[reportMissingImports]
 
 from . import (
     ATTR_DATA_UPDATES,
+    ATTR_KEEPALIVE_RECONNECTS,
+    ATTR_KEEPALIVE_RESUBSCRIBES,
     ATTR_MQTT_CONNECTED,
     ATTR_QUOTA_REQUESTS,
     ATTR_STATUS_RECONNECTS,
@@ -690,6 +692,97 @@ class QuotaScheduledStatusSensorEntity(QuotaStatusSensorEntity):
     ):
         super().__init__(client, device, title, key)
         self._scheduled_refresh_sec = reload_delay
+
+
+class MqttKeepaliveStatusSensorEntity(StatusSensorEntity):
+    """StatusSensorEntity that keeps the cloud's real-time MQTT stream alive.
+
+    Some devices (observed on the Stream Microinverter) are throttled by the
+    EcoFlow cloud to a ~15-minute heartbeat once the initial streaming window
+    after (re)connect expires, and expose no data at all via the REST quota
+    endpoints — so the QuotaStatusSensorEntity approaches cannot help. What
+    demonstrably re-opens the real-time stream is a fresh MQTT session.
+
+    When the device has been silent for ``stale_after_sec`` but is NOT
+    explicitly reported offline by the cloud (a PV microinverter at night is
+    genuinely off — leave it alone), this entity first re-issues SUBSCRIBE for
+    the device's topics (cheap, does not disturb other devices). If data still
+    does not flow after ``reconnect_after_sec``, it escalates to a full MQTT
+    reconnect, rate-limited by ``reconnect_cooldown_sec``.
+    """
+
+    def __init__(
+        self,
+        client: EcoflowApiClient,
+        device: BaseDevice,
+        title: str = "Status",
+        key: str = "status",
+        stale_after_sec: int = 120,
+        resubscribe_cooldown_sec: int = 60,
+        reconnect_after_sec: int = 300,
+        reconnect_cooldown_sec: int = 900,
+    ):
+        super().__init__(client, device, title, key)
+        self._stale_after_sec = stale_after_sec
+        self._resubscribe_cooldown_sec = resubscribe_cooldown_sec
+        self._reconnect_after_sec = reconnect_after_sec
+        self._reconnect_cooldown_sec = reconnect_cooldown_sec
+        self._last_resubscribe = dt.utcnow().replace(year=2000, month=1, day=1)
+        self._last_keepalive_reconnect = dt.utcnow()
+        self._resubscribe_count = 0
+        self._keepalive_reconnect_count = 0
+        self._attrs[ATTR_KEEPALIVE_RESUBSCRIBES] = 0
+        self._attrs[ATTR_KEEPALIVE_RECONNECTS] = 0
+
+    def _handle_coordinator_update(self) -> None:
+        if self._keepalive():
+            self._actualize_attributes()
+            self.schedule_update_ha_state()
+        super()._handle_coordinator_update()
+
+    def _keepalive(self) -> bool:
+        if self._tracker.explicit_offline:
+            return False
+        if not self._client.mqtt_client.is_connected():
+            # Base class handles broken connections.
+            return False
+
+        now = dt.utcnow()
+        age = (now - self._tracker.last_data_time).total_seconds()
+        if age < self._stale_after_sec:
+            return False
+
+        # Escalation: re-subscribing did not bring the stream back.
+        if age >= self._reconnect_after_sec:
+            if (now - self._last_keepalive_reconnect).total_seconds() >= self._reconnect_cooldown_sec:
+                self._last_keepalive_reconnect = now
+                self._keepalive_reconnect_count += 1
+                self._attrs[ATTR_KEEPALIVE_RECONNECTS] = self._keepalive_reconnect_count
+                _LOGGER.info(
+                    "Keepalive: no data from %s for %d sec despite re-subscribe, reconnecting MQTT",
+                    self._device.device_info.sn,
+                    int(age),
+                )
+                self.hass.async_create_background_task(
+                    self._async_reconnect_mqtt(),
+                    f"keepalive reconnect ecoflow mqtt {self._device.device_info.sn}",
+                )
+                return True
+            return False
+
+        # First line: refresh the subscription on the live connection.
+        if (now - self._last_resubscribe).total_seconds() >= self._resubscribe_cooldown_sec:
+            self._last_resubscribe = now
+            if self._client.refresh_device_subscription(self._device.device_info.sn):
+                self._resubscribe_count += 1
+                self._attrs[ATTR_KEEPALIVE_RESUBSCRIBES] = self._resubscribe_count
+                _LOGGER.info(
+                    "Keepalive: no data from %s for %d sec, re-subscribed to its MQTT topics",
+                    self._device.device_info.sn,
+                    int(age),
+                )
+                return True
+        return False
 
 
 class IntegralEnergySensorEntity(IntegrationSensor):
