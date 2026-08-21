@@ -1,18 +1,24 @@
+import asyncio
+import logging
+from collections.abc import Callable
 from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.core import HomeAssistant
 
 from custom_components.ecoflow_cloud.api import EcoflowApiClient
 from custom_components.ecoflow_cloud.binary_sensor import MiscBinarySensorEntity
 from custom_components.ecoflow_cloud.devices import BaseDevice, const
 from custom_components.ecoflow_cloud.devices.public.data_bridge import to_plain
+from custom_components.ecoflow_cloud.entities import BaseSensorEntity
 from custom_components.ecoflow_cloud.sensor import (
     AmpSensorEntity,
     CelsiusSensorEntity,
+    EnergySensorEntity,
     FrequencySensorEntity,
     MiscSensorEntity,
     MqttKeepaliveStatusSensorEntity,
@@ -20,12 +26,83 @@ from custom_components.ecoflow_cloud.sensor import (
     VoltSensorEntity,
     WattsSensorEntity,
 )
+from custom_components.ecoflow_cloud.devices.public.stream_ac import (
+    DEFAULT_STREAM_AC_HISTORY_PERIOD_SEC,
+    StreamACHistoryUpdateCoordinator,
+    StreamACMonetarySensorEntity,
+)
 from custom_components.ecoflow_cloud.devices.public.stream_pv_helpers import (
     StreamPvWattsSensorEntity,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
+# The Microinverter has no battery, so only the generation-side metrics from
+# the shared Stream history coordinator apply. Unlike Stream AC/Battery,
+# these codes are not confirmed against a real Microinverter account - the
+# app's home-screen widget for this product may use different codes
+# entirely, in which case these sensors will just stay unavailable. Disabled
+# by default until someone can confirm they populate.
+MICROINVERTER_HISTORY_METRICS: frozenset[str] = frozenset(
+    {"environmental_impact", "savings", "solar_generated"}
+)
+
 
 class StreamMicroinveter(BaseDevice):
+    history_coordinator: "StreamACHistoryUpdateCoordinator | None" = None
+    _history_unsub: "Callable[[], None] | None" = None
+
+    async def async_cleanup(self) -> None:
+        """Cancel background tasks on device unload."""
+        if self._history_unsub is not None:
+            self._history_unsub()
+            self._history_unsub = None
+        tasks = getattr(self, "_background_tasks", None)
+        if tasks:
+            for task in list(tasks):
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            tasks.clear()
+
+    def configure_history(self, hass: HomeAssistant, client: EcoflowApiClient) -> None:
+        """Set up the periodic historical-data coordinator and trigger an initial refresh."""
+        if not hasattr(self, "_background_tasks"):
+            self._background_tasks: set[asyncio.Task[Any]] = set()
+        try:
+            if self.history_coordinator is None:
+                self.history_coordinator = StreamACHistoryUpdateCoordinator(
+                    hass,
+                    client,
+                    self,
+                    DEFAULT_STREAM_AC_HISTORY_PERIOD_SEC,
+                    metrics=MICROINVERTER_HISTORY_METRICS,
+                )
+            if self._history_unsub is None:
+                # Keep the coordinator's periodic refresh scheduled - see the
+                # matching comment in stream_ac.py for why this is needed.
+                self._history_unsub = self.history_coordinator.async_add_listener(lambda: None)
+
+            def _on_task_done(t: asyncio.Task) -> None:
+                try:
+                    t.result()
+                except Exception as exc:
+                    _LOGGER.error("Background historical fetch task failed: %s", exc)
+                finally:
+                    self._background_tasks.discard(t)
+
+            task = hass.async_create_task(self.history_coordinator.async_request_refresh())
+            self._background_tasks.add(task)
+            task.add_done_callback(_on_task_done)
+            _LOGGER.info("Scheduled initial historical refresh for StreamMicroinveter %s", self.device_info.sn)
+        except Exception as exc:
+            _LOGGER.error(
+                "Failed to schedule historical refresh for StreamMicroinveter %s: %s",
+                self.device_info.sn,
+                exc,
+                exc_info=True,
+            )
+
     def sensors(self, client: EcoflowApiClient) -> list[SensorEntity]:
         return [
             WattsSensorEntity(client, self, "gridConnectionPower", const.STREAM_POWER_AC),
@@ -66,6 +143,52 @@ class StreamMicroinveter(BaseDevice):
             MiscSensorEntity(client, self, "gridCodeSelection", "Grid Code", False).with_icon("mdi:transmission-tower"),
             MiscSensorEntity(client, self, "moduleWifiRssi", "WiFi Signal Strength", False).with_icon("mdi:wifi"),
             self._status_sensor(client),
+            # --- Historical data sensors (fetched via HTTP API every 15 minutes) ---
+            # Speculative: reuses Stream AC/Battery's app-dashboard metric codes,
+            # unconfirmed against a real Microinverter account. Disabled by
+            # default; enable to test whether they populate for your device.
+            EnergySensorEntity(client, self, "history.solarGeneratedToday", const.STREAM_HISTORY_SOLAR_GENERATED_TODAY, False)
+            .with_icon("mdi:solar-power")
+            .with_unit_of_measurement("Wh")
+            .with_state_class(SensorStateClass.TOTAL)
+            .attr("history.solarGeneratedToday.beginTime", "Begin Time", "")
+            .attr("history.solarGeneratedToday.endTime", "End Time", "")
+            .attr("history.mainSn", "Main Device SN", ""),
+            EnergySensorEntity(client, self, "history.solarGeneratedCumulative", const.STREAM_HISTORY_SOLAR_GENERATED_CUMULATIVE, False)
+            .with_icon("mdi:solar-power")
+            .with_unit_of_measurement("Wh")
+            .with_state_class(SensorStateClass.TOTAL_INCREASING)
+            .attr("history.solarGeneratedCumulative.beginTime", "Begin Time", "")
+            .attr("history.solarGeneratedCumulative.endTime", "End Time", "")
+            .attr("history.mainSn", "Main Device SN", ""),
+            BaseSensorEntity(client, self, "history.environmentalImpactToday", const.STREAM_HISTORY_ENVIRONMENTAL_IMPACT_TODAY, False)
+            .with_icon("mdi:molecule-co2")
+            .with_unit_of_measurement("kg")
+            .with_state_class(SensorStateClass.TOTAL)
+            .attr("history.environmentalImpactToday.beginTime", "Begin Time", "")
+            .attr("history.environmentalImpactToday.endTime", "End Time", "")
+            .attr("history.mainSn", "Main Device SN", ""),
+            BaseSensorEntity(client, self, "history.environmentalImpactCumulative", const.STREAM_HISTORY_ENVIRONMENTAL_IMPACT_CUMULATIVE, False)
+            .with_icon("mdi:molecule-co2")
+            .with_unit_of_measurement("kg")
+            .with_state_class(SensorStateClass.TOTAL_INCREASING)
+            .attr("history.environmentalImpactCumulative.beginTime", "Begin Time", "")
+            .attr("history.environmentalImpactCumulative.endTime", "End Time", "")
+            .attr("history.mainSn", "Main Device SN", ""),
+            StreamACMonetarySensorEntity(client, self, "history.solarEnergySavingsToday", const.STREAM_HISTORY_TOTAL_SOLAR_SAVINGS_TODAY, "history.solarEnergySavingsUnit", False)
+            .with_icon("mdi:cash")
+            .with_state_class(SensorStateClass.TOTAL)
+            .attr("history.solarEnergySavingsToday.beginTime", "Begin Time", "")
+            .attr("history.solarEnergySavingsToday.endTime", "End Time", "")
+            .attr("history.solarEnergySavingsUnit", "Currency Unit", "")
+            .attr("history.mainSn", "Main Device SN", ""),
+            StreamACMonetarySensorEntity(client, self, "history.solarEnergySavingsCumulative", const.STREAM_HISTORY_TOTAL_SOLAR_SAVINGS_CUMULATIVE, "history.solarEnergySavingsUnit", False)
+            .with_icon("mdi:cash")
+            .with_state_class(SensorStateClass.TOTAL_INCREASING)
+            .attr("history.solarEnergySavingsCumulative.beginTime", "Begin Time", "")
+            .attr("history.solarEnergySavingsCumulative.endTime", "End Time", "")
+            .attr("history.solarEnergySavingsUnit", "Currency Unit", "")
+            .attr("history.mainSn", "Main Device SN", ""),
         ]
 
     def binary_sensors(self, client: EcoflowApiClient) -> list[BinarySensorEntity]:
