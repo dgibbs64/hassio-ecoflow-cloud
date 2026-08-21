@@ -18,6 +18,7 @@ Usage:
 
 import json
 import os
+from datetime import datetime, timezone
 import uuid
 from pathlib import Path
 
@@ -25,7 +26,10 @@ from pathlib import Path
 # Configuration defaults
 DEFAULT_API_HOST = "api-e.ecoflow.com"
 DEFAULT_GROUP = "Home"
-CONFIG_VERSION = 10
+# Must match CONFIG_VERSION in custom_components/ecoflow_cloud/__init__.py -
+# a mismatch routes the injected entry through async_migrate_entry, which is
+# only exercised for real UI-created entries, not this script-injected one.
+CONFIG_VERSION = 13
 
 # Default device options
 DEFAULT_OPTIONS = {
@@ -34,6 +38,7 @@ DEFAULT_OPTIONS = {
     "diagnostic_mode": False,
     "verbose_status_mode": False,
     "assume_offline_sec": 300,
+    "reset_sensors_on_offline": True,
 }
 
 
@@ -70,6 +75,7 @@ def create_config_entry(
 ) -> dict:
     """Create a config entry for the EcoFlow Cloud integration."""
     entry_id = str(uuid.uuid4()).replace("-", "")
+    _now_iso = datetime.now(timezone.utc).isoformat()
 
     # Build device list for data
     device_list_data = {}
@@ -88,6 +94,9 @@ def create_config_entry(
             "diagnostic_mode": device.get("diagnostic_mode", DEFAULT_OPTIONS["diagnostic_mode"]),
             "verbose_status_mode": device.get("verbose_status_mode", DEFAULT_OPTIONS["verbose_status_mode"]),
             "assume_offline_sec": device.get("assume_offline_sec", DEFAULT_OPTIONS["assume_offline_sec"]),
+            "reset_sensors_on_offline": device.get(
+                "reset_sensors_on_offline", DEFAULT_OPTIONS["reset_sensors_on_offline"]
+            ),
         }
 
     return {
@@ -109,6 +118,12 @@ def create_config_entry(
         "pref_disable_new_entities": False,
         "pref_disable_polling": False,
         "source": "user",
+        # HA's core.config_entries storage (schema 1.5+) requires these on
+        # every entry - without them, async_initialize() KeyErrors on boot.
+        "created_at": _now_iso,
+        "modified_at": _now_iso,
+        "discovery_keys": {},
+        "subentries": {},
         "unique_id": f"group-{group}",
         "disabled_by": None,
     }
