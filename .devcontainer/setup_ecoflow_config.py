@@ -38,6 +38,7 @@ DEFAULT_OPTIONS = {
     "diagnostic_mode": False,
     "verbose_status_mode": False,
     "assume_offline_sec": 300,
+    "reset_sensors_on_offline": True,
 }
 
 
@@ -93,6 +94,9 @@ def create_config_entry(
             "diagnostic_mode": device.get("diagnostic_mode", DEFAULT_OPTIONS["diagnostic_mode"]),
             "verbose_status_mode": device.get("verbose_status_mode", DEFAULT_OPTIONS["verbose_status_mode"]),
             "assume_offline_sec": device.get("assume_offline_sec", DEFAULT_OPTIONS["assume_offline_sec"]),
+            "reset_sensors_on_offline": device.get(
+                "reset_sensors_on_offline", DEFAULT_OPTIONS["reset_sensors_on_offline"]
+            ),
         }
 
     return {
