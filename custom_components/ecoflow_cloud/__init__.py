@@ -307,7 +307,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.warning("Failed to fetch device statuses: %s", ex)
         api_devices_map = None
 
-    for device_data in devices_list.values():
+    for sn, device_data in devices_list.items():
         device = api_client.configure_device(device_data, api_devices_map)
         device.configure(hass)
         configure_history = getattr(device, "configure_history", None)
@@ -317,6 +317,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             except Exception as exc:
                 _LOGGER.error("Failed to configure history for %s: %s", sn, exc, exc_info=True)
 
+    def request_reauth() -> None:
+        # called from the paho thread once EcoFlow rejects the MQTT credentials
+        hass.loop.call_soon_threadsafe(entry.async_start_reauth, hass)
+
+    api_client.on_auth_failure = request_reauth
     await hass.async_add_executor_job(api_client.start)
     hass.data[ECOFLOW_DOMAIN][entry.entry_id] = api_client
 
